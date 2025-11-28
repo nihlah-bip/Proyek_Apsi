@@ -1,0 +1,309 @@
+{% extends 'admin/base.html' %}
+{% block title %}Input Latihan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <h1 class="h3 mb-4 text-gray-800">Input Progres & Jadwal Latihan</h1>
+
+    <div class="row">
+        
+        <div class="col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h6 class="m-0 font-weight-bold">Form Catatan Trainer</h6>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('training') }}" method="POST">
+                        
+                        <div class="form-group">
+                            <label class="font-weight-bold">Pilih Member Binaan</label>
+                            <select name="member_id" class="form-control" required>
+                                <option value="">-- Pilih Member --</option>
+                                {% for m in members %}
+                                    <option value="{{ m.id }}" {% if selected_member and (selected_member|string) == (m.id|string) %}selected{% endif %}>{{ m.nama_lengkap }} ({{ m.program }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tanggal Latihan</label>
+                            <input type="date" name="tanggal" class="form-control" value="{{ today }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label>Berat Badan (Kg)</label>
+                                    <input type="number" step="0.1" name="berat_badan" class="form-control" placeholder="Cth: 65.5">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label>BMI (Body Mass Index)</label>
+                                    <input type="number" step="0.1" name="bmi" class="form-control" placeholder="Cth: 22.1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                                                <div class="form-group">
+                                                        <label class="font-weight-bold text-success">Jadwal Pertemuan Berikutnya</label>
+
+                                                        <div class="jadwal-komponen">
+                                                            <div class="d-flex flex-wrap" style="gap:12px;margin-bottom:10px;">
+                                                                <div style="flex:1;min-width:180px">
+                                                                    <label for="jadwal-hari" class="small">Hari</label>
+                                                                    <select id="jadwal-hari" class="form-control">
+                                                                        <option value="">-- Pilih Hari --</option>
+                                                                        <option value="Hari ini">Hari ini</option>
+                                                                        <option value="Besok">Besok</option>
+                                                                        <option value="Lusa">Lusa</option>
+                                                                        <option value="Senin depan">Senin depan</option>
+                                                                        <option value="Selasa depan">Selasa depan</option>
+                                                                        <option value="Rabu depan">Rabu depan</option>
+                                                                        <option value="Kamis depan">Kamis depan</option>
+                                                                        <option value="Jumat depan">Jumat depan</option>
+                                                                        <option value="Sabtu depan">Sabtu depan</option>
+                                                                        <option value="Minggu depan">Minggu depan</option>
+                                                                    </select>
+                                                                </div>
+
+                                                                <div style="min-width:170px">
+                                                                    <label for="jadwal-jam" class="small">Jam</label>
+                                                                    <input id="jadwal-jam" type="time" class="form-control" />
+                                                                </div>
+
+                                                                <div style="flex:1;min-width:220px">
+                                                                    <label for="jadwal-fokus" class="small">Fokus Latihan</label>
+                                                                    <select id="jadwal-fokus" class="form-control">
+                                                                        <option value="">-- Pilih Fokus --</option>
+                                                                        <option value="Leg Day">Leg Day</option>
+                                                                        <option value="Push Day">Push Day</option>
+                                                                        <option value="Pull Day">Pull Day</option>
+                                                                        <option value="Chest & Tricep">Chest & Tricep</option>
+                                                                        <option value="Back & Bicep">Back & Bicep</option>
+                                                                        <option value="Shoulder & Core">Shoulder & Core</option>
+                                                                        <option value="Full Body">Full Body</option>
+                                                                        <option value="HIIT">HIIT</option>
+                                                                        <option value="Cardio Ringan">Cardio Ringan</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="mb-2 d-flex flex-wrap" style="gap:8px;">
+                                                                <button type="button" class="btn btn-outline-primary template-btn" data-day="Besok" data-time="16:00" data-focus="Leg Day">Template: Besok 16:00, Leg Day</button>
+                                                                <button type="button" class="btn btn-outline-primary template-btn" data-day="Sabtu depan" data-time="09:00" data-focus="Full Body">Template: Sabtu depan 09:00, Full Body</button>
+                                                                <button type="button" class="btn btn-outline-primary template-btn" data-day="Minggu depan" data-time="17:30" data-focus="Cardio Ringan">Template: Minggu depan 17:30, Cardio Ringan</button>
+                                                            </div>
+
+                                                            <textarea id="jadwal-teks" name="jadwal_teks" rows="3" class="form-control" placeholder="Contoh: Senin depan jam 16.00, Latihan Kaki (Leg Day)."></textarea>
+                                                        </div>
+
+                                                </div>
+
+                                                <script>
+                                                (function(){
+                                                    const hariEl = document.getElementById('jadwal-hari');
+                                                    const jamEl = document.getElementById('jadwal-jam');
+                                                    const fokusEl = document.getElementById('jadwal-fokus');
+                                                    const teksEl = document.getElementById('jadwal-teks');
+                                                    const templateBtns = document.querySelectorAll('.template-btn');
+
+                                                    function formatJamToDot(timeStr){
+                                                        if(!timeStr) return '';
+                                                        return timeStr.replace(':', '.');
+                                                    }
+
+                                                    function composeTextFromControls(){
+                                                        const hari = hariEl.value && hariEl.value.trim();
+                                                        const jam = jamEl.value && jamEl.value.trim();
+                                                        const fokus = fokusEl.value && fokusEl.value.trim();
+
+                                                        if(!hari && !jam && !fokus){
+                                                            return '';
+                                                        }
+
+                                                        let parts = [];
+                                                        if(hari) parts.push(hari);
+
+                                                        if(jam){
+                                                            parts.push('jam ' + formatJamToDot(jam));
+                                                        }
+
+                                                        let main = parts.join(' ');
+                                                        if(fokus){
+                                                            main += ', ' + fokus;
+                                                        }
+
+                                                        if(main && !/[.!?]$/.test(main)) main += '.';
+                                                        return main;
+                                                    }
+
+                                                    function handleControlChange(){
+                                                        const composed = composeTextFromControls();
+                                                        teksEl.value = composed;
+                                                    }
+
+                                                    templateBtns.forEach(btn => {
+                                                        btn.addEventListener('click', () => {
+                                                            const d = btn.getAttribute('data-day') || '';
+                                                            const t = btn.getAttribute('data-time') || '';
+                                                            const f = btn.getAttribute('data-focus') || '';
+
+                                                            if(d) hariEl.value = d;
+                                                            if(t) jamEl.value = t;
+                                                            if(f) fokusEl.value = f;
+
+                                                            teksEl.focus();
+                                                            teksEl.value = composeTextFromControls();
+                                                        });
+                                                    });
+
+                                                    hariEl.addEventListener('change', handleControlChange);
+                                                    jamEl.addEventListener('input', handleControlChange);
+                                                    fokusEl.addEventListener('change', handleControlChange);
+
+                                                    // --- Tooltip init (Bootstrap) and modal delete handler ---
+                                                    function initDeleteModalAndTooltips(){
+                                                        // Initialize Bootstrap tooltips if jQuery is available
+                                                        try{
+                                                            if(window.jQuery && typeof window.jQuery.fn.tooltip === 'function'){
+                                                                window.jQuery(function($){
+                                                                    $('[data-toggle="tooltip"]').tooltip();
+                                                                });
+                                                            }
+                                                        }catch(e){
+                                                            console.warn('Tooltip init failed', e);
+                                                        }
+
+                                                        let formToSubmit = null;
+                                                        const modalEl = document.getElementById('confirmDeleteModal');
+                                                        const modalMsg = document.getElementById('confirmDeleteModalBody');
+                                                        const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+                                                        document.querySelectorAll('.delete-latihan-form').forEach(form => {
+                                                            form.addEventListener('submit', function(ev){
+                                                                ev.preventDefault();
+                                                                formToSubmit = this;
+                                                                const member = this.getAttribute('data-member') || '';
+                                                                const date = this.getAttribute('data-date') || '';
+                                                                if(modalMsg) modalMsg.textContent = `Yakin ingin menghapus catatan latihan tanggal ${date} untuk ${member}?`;
+                                                                // show modal (Bootstrap)
+                                                                try{
+                                                                    if(window.jQuery && window.jQuery('#confirmDeleteModal').modal){
+                                                                        window.jQuery('#confirmDeleteModal').modal('show');
+                                                                    } else {
+                                                                        // fallback: simple confirm
+                                                                        if(confirm(modalMsg.textContent)){
+                                                                            this.submit();
+                                                                        }
+                                                                    }
+                                                                }catch(e){
+                                                                    if(confirm(modalMsg.textContent)){
+                                                                        this.submit();
+                                                                    }
+                                                                }
+                                                                return false;
+                                                            });
+                                                        });
+
+                                                        if(confirmBtn){
+                                                            confirmBtn.addEventListener('click', function(){
+                                                                if(formToSubmit){
+                                                                    // hide modal first
+                                                                    try{ if(window.jQuery) window.jQuery('#confirmDeleteModal').modal('hide'); }catch(e){}
+                                                                    formToSubmit.submit();
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+
+                                                    // Run init after brief delay so DOM + bootstrap scripts are ready
+                                                    setTimeout(initDeleteModalAndTooltips, 200);
+
+                                                })();
+                                                </script>
+
+                                                <!-- Confirm Delete Modal -->
+                                                <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+                                                    <div class="modal-dialog" role="document">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title" id="confirmDeleteModalLabel">Konfirmasi Hapus</h5>
+                                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                    <span aria-hidden="true">&times;</span>
+                                                                </button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <p id="confirmDeleteModalBody">Yakin ingin menghapus catatan latihan ini?</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                                                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Hapus</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                        <button type="submit" class="btn btn-success btn-block btn-lg">
+                            <i class="fas fa-save"></i> Simpan Catatan
+                        </button>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Riwayat Input Terakhir</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama Member</th>
+                                    <th>Hasil (BB / BMI)</th>
+                                    <th>Catatan Jadwal</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.tanggal.strftime('%d-%m-%Y') }}</td>
+                                    <td><strong>{{ log.member.nama_lengkap }}</strong></td>
+                                    <td>
+                                        {% if log.berat_badan %}{{ log.berat_badan }} kg{% else %}-{% endif %} / 
+                                        {% if log.bmi %}{{ log.bmi }}{% else %}-{% endif %}
+                                    </td>
+                                    <td><small>{{ log.jadwal_teks }}</small></td>
+                                    <td class="text-center">
+                                        <form method="POST" class="delete-latihan-form" action="{{ url_for('delete_latihan', latihan_id=log.id) }}" data-member="{{ log.member.nama_lengkap }}" data-date="{{ log.tanggal.strftime('%d-%m-%Y') }}">
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Hapus catatan {{ log.tanggal.strftime('%d-%m-%Y') }}" data-toggle="tooltip" data-placement="top" title="Hapus catatan">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        <div class="small text-muted mt-1">{{ log.tanggal.strftime('%d-%m-%Y') }}</div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">Belum ada data yang diinput.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

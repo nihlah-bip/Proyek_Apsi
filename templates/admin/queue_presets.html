@@ -1,0 +1,40 @@
+{% extends 'admin/base.html' %}
+{% block title %}Preset μ Alat{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Pengaturan Preset μ per Alat</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <p>Ubah nilai <strong>μ (pelayanan per jam per alat)</strong> untuk tiap jenis alat. Nilai ini akan muncul sebagai placeholder di halaman Analisis Antrian.</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr><th>Alat</th><th>μ (default)</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for e in equipments %}
+                        <tr>
+                            <td>{{ e }}</td>
+                            <td>
+                                {% set val = presets.get(e) if presets else '' %}
+                                <form method="post" action="{{ url_for('queue_presets') }}" class="form-inline">
+                                    <input type="hidden" name="equipment" value="{{ e }}">
+                                    <input name="mu" class="form-control form-control-sm mr-2" style="width:120px;" value="{{ val }}">
+                                    <button class="btn btn-sm btn-primary" type="submit">Simpan</button>
+                                </form>
+                            </td>
+                            <td>
+                                <!-- future actions -->
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

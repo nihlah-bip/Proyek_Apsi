@@ -1,0 +1,77 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Kelola Personal Trainer{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Kelola Personal Trainer</h1>
+        <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#tambahPTModal">Tambah Personal Trainer</button>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Personal Trainer</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Username</th>
+                            <th>Clients</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in trainers %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ t.username }}</td>
+                            <td>{{ t.clients_count or 0 }}</td>
+                            <td>
+                                <a class="btn btn-info btn-sm" href="{{ url_for('admin_trainer_members', trainer_id=t.id) }}">Lihat Clients</a>
+                                <form action="{{ url_for('delete_trainer', id=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Hapus trainer ini?');">
+                                    <button class="btn btn-danger btn-sm">Hapus</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted">Belum ada Personal Trainer.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal tambah PT -->
+<div class="modal fade" id="tambahPTModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Tambah Personal Trainer</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <form action="{{ url_for('manage_trainers') }}" method="POST">
+      <div class="modal-body">
+        <div class="form-group">
+            <label>Username</label>
+            <input name="username" class="form-control" required placeholder="contoh: putra_pt">
+        </div>
+        <div class="form-group">
+            <small class="text-muted">Akun PT dibuat tanpa password. PT akan diberikan instruksi untuk membuat/mengatur password nanti.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+        <button class="btn btn-primary" type="submit">Buat PT</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

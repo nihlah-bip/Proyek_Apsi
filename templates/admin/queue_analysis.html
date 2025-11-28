@@ -1,0 +1,206 @@
+{% extends 'admin/base.html' %}
+{% block title %}Analisis Antrian (M/M/c){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <h1 class="h3 mb-4 text-gray-800">Analisis Antrian (Model M/M/c)</h1>
+
+    <div class="row mb-3">
+        <div class="col-lg-12">
+            <div class="card shadow-sm border-left-primary">
+                <div class="card-body">
+                    <h6 class="m-0 font-weight-bold">Keterangan Interpretasi &rho;</h6>
+                    <p class="mb-0">Nilai utilisasi (&rho;) membantu menilai tingkat kepadatan sistem:</p>
+                    <ul class="mb-0 mt-2">
+                        <li>&rho; &lt; 0.8 → <strong>Kapasitas alat masih mencukupi</strong></li>
+                        <li>&rho; &ge; 0.8 → <strong>Sistem mendekati penuh</strong> → disarankan tambah alat atau batasi durasi</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Form Input</h6>
+                    <div class="float-right">
+                        <a href="{{ url_for('queue_presets') }}" class="btn btn-sm btn-outline-secondary">Manage Presets</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('queue_analysis') }}">
+                        <div class="form-group">
+                            <label>Jenis Alat</label>
+                            <select name="equipment" class="form-control">
+                                {% for e in equipments %}
+                                <option value="{{ e }}" {% if form and form.equipment==e %}selected{% endif %}>{{ e }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>&lambda; (kedatangan per jam)</label>
+                            <input type="number" step="0.01" name="lambda" class="form-control" value="{{ form.lambda if form and form.lambda is not none else '' }}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>&mu; (pelayanan per jam per alat)</label>
+                            <input type="number" step="0.01" name="mu" class="form-control" value="{{ form.mu if form and form.mu is not none else '' }}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>M (jumlah alat)</label>
+                            <input type="number" name="m" class="form-control" value="{{ form.m if form and form.m is not none else 1 }}" min="1" required>
+                        </div>
+
+                        <button class="btn btn-primary" type="submit">Hitung</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Analisis</h6>
+                </div>
+                <div class="card-body">
+                    {% if result %}
+                        
+                        <table class="table table-sm">
+                            <tr><th>Alat</th><td>{{ result.equipment }}</td></tr>
+                            <tr><th>&lambda;</th><td>{{ result.lambda }}</td></tr>
+                            <tr><th>&mu;</th><td>{{ result.mu }}</td></tr>
+                            <tr><th>M</th><td>{{ result.m }}</td></tr>
+                            <tr><th>Utilization (&rho;)</th><td>{{ '{:.4f}'.format(result.rho) }}</td></tr>
+                            <tr><th>Panjang antrian (Lq)</th><td>{% if result.Lq is none %}-{% else %}{{ '{:.4f}'.format(result.Lq) }}{% endif %}</td></tr>
+                            <tr><th>Waktu tunggu rata-rata (Wq jam)</th><td>{% if result.Wq is none %}-{% else %}{{ '{:.4f}'.format(result.Wq) }}{% endif %}</td></tr>
+                            <tr><th>Total waktu dalam sistem (W jam)</th><td>{% if result.W is none %}-{% else %}{{ '{:.4f}'.format(result.W) }}{% endif %}</td></tr>
+                        </table>
+
+                        <div class="alert {% if result.rho < 0.8 %}alert-success{% else %}alert-warning{% endif %}">
+                            {{ result.recommendation }}
+                        </div>
+                    {% else %}
+                        <p>Belum ada perhitungan. Isi form di samping lalu klik <strong>Hitung</strong>.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Riwayat Analisis -->
+<div class="row mt-3">
+    <div class="col-lg-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Riwayat Analisis Terakhir</h6>
+                <a href="{{ url_for('export_queue_csv') }}" class="btn btn-sm btn-outline-secondary">Export CSV</a>
+            </div>
+            <div class="card-body">
+                {% if history and history|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Alat</th>
+                                <th>&lambda;</th>
+                                <th>&mu;</th>
+                                <th>M</th>
+                                <th>&rho;</th>
+                                <th>Lq</th>
+                                <th>Wq (jam)</th>
+                                <th>W (jam)</th>
+                                <th>Rekomendasi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in history %}
+                            <tr>
+                                <td>{{ h.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                                <td>{{ h.equipment }}</td>
+                                <td>{{ '{:.2f}'.format(h.lam) }}</td>
+                                <td>{{ '{:.2f}'.format(h.mu) }}</td>
+                                <td>{{ h.m }}</td>
+                                <td>{{ '{:.4f}'.format(h.rho) if h.rho is not none else '-' }}</td>
+                                <td>{{ '{:.4f}'.format(h.Lq) if h.Lq is not none else '-' }}</td>
+                                <td>{{ '{:.4f}'.format(h.Wq) if h.Wq is not none else '-' }}</td>
+                                <td>{{ '{:.4f}'.format(h.W) if h.W is not none else '-' }}</td>
+                                <td>{{ h.recommendation }}</td>
+                                <td class="text-center">
+                                    {% if session.get('role') in ['manager', 'admin'] %}
+                                    <form method="post" action="{{ url_for('delete_queue_entry', id=h.id) }}" style="display:inline-block;">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus riwayat ini?');">Hapus</button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <canvas id="queueChart" height="120"></canvas>
+                {% else %}
+                <p class="text-muted">Belum ada riwayat analisis.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mapping presets dari backend
+    const presets = {{ (presets or {})|tojson }};
+
+    const eqSelect = document.querySelector('select[name="equipment"]');
+    const muInput = document.querySelector('input[name="mu"]');
+    const lambdaInput = document.querySelector('input[name="lambda"]');
+
+    function applyPreset(){
+        const e = eqSelect.value;
+        if(presets && presets[e]){
+            muInput.placeholder = presets[e];
+        } else {
+            muInput.placeholder = '';
+        }
+        // kalau belum ada lambda, isi contoh
+        if(!lambdaInput.value) lambdaInput.placeholder = 'Contoh: 30';
+    }
+
+    eqSelect.addEventListener('change', applyPreset);
+    document.addEventListener('DOMContentLoaded', applyPreset);
+
+    // Chart: gunakan history yang dikirim dari backend
+    {% if history and history|length > 0 %}
+    const labels = {{ chart_labels|tojson }};
+    const rhos = {{ chart_rhos|tojson }};
+    const Lqs = {{ chart_Lqs|tojson }};
+
+    if (typeof Chart !== 'undefined') {
+        const ctx = document.getElementById('queueChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'ρ (utilization)', data: rhos, borderColor: '#4e73df', fill: false },
+                        { label: 'Lq (queue length)', data: Lqs, borderColor: '#1cc88a', fill: false }
+                    ]
+                },
+                options: { maintainAspectRatio: false }
+            });
+        }
+        
+    {% endif %}
+</script>
+{% endblock %}

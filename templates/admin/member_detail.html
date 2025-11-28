@@ -1,0 +1,72 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Member: {{ member.nama_lengkap }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Member: {{ member.nama_lengkap }}</h1>
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100 border-left-primary">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename='admin_assets/img/undraw_profile.svg') }}" width="100" class="rounded-circle mb-3 bg-gray-200 p-2">
+                    <h4 class="text-dark font-weight-bold">{{ member.nama_lengkap }}</h4>
+                    <p class="mb-1">No WA: {{ member.no_wa or '-' }}</p>
+                    <p class="mb-1">Program: <strong>{{ member.program }}</strong></p>
+                    <p class="mb-1">Status: <strong>{{ member.status }}</strong></p>
+                    <hr>
+                    <small class="text-muted">Masa Aktif:</small>
+                    <h5 class="font-weight-bold text-success">{{ member.tgl_habis.strftime('%d %B %Y') if member.tgl_habis else '-' }}</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Jadwal Latihan Terbaru</h6>
+                </div>
+                <div class="card-body">
+                    {% if logs and logs|length > 0 %}
+                        <h5 class="font-weight-bold">{{ logs[0].jadwal_teks or '-' }}</h5>
+                        <small class="text-muted">Diupdate: {{ logs[0].tanggal.strftime('%d-%m-%Y') }}</small>
+                    {% else %}
+                        <p class="text-muted">Belum ada jadwal latihan.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Riwayat Berat Badan & BMI</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Berat Badan (kg)</th>
+                                    <th>BMI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.tanggal.strftime('%d-%m-%Y') }}</td>
+                                    <td>{{ log.berat_badan or '-' }}</td>
+                                    <td>{{ log.bmi or '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center">Belum ada data.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

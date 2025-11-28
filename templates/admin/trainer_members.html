@@ -1,0 +1,48 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Members of {{ trainer.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Members: {{ trainer.username }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Member yang dipandu oleh {{ trainer.username }}</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nama</th>
+                            <th>Program</th>
+                            <th>Kontak</th>
+                            <th>Berlaku Sampai</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in members %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ m.nama_lengkap }}</td>
+                            <td>{{ m.program }}</td>
+                            <td>{{ m.no_wa or '-' }}</td>
+                            <td>{{ m.tgl_habis.strftime('%d %b %Y') if m.tgl_habis else '-' }}</td>
+                            <td>
+                                <a class="btn btn-sm btn-info" href="{{ url_for('training') }}?member_id={{ m.id }}">Input Latihan</a>
+                                <a class="btn btn-sm btn-primary" href="{{ url_for('admin_member_detail', member_id=m.id) }}">Lihat Detail</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted">Belum ada member untuk trainer ini.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
