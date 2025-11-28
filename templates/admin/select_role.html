@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Pilih Role - Lembah Fitness</title>
+
+    <link href="{{ url_for('static', filename='admin_assets/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <link href="{{ url_for('static', filename='admin_assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
+
+    <style>
+        .role-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .role-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important;
+            border-color: #4e73df;
+        }
+        .role-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .role-card-admin .role-icon { color: #4e73df; }
+        .role-card-pt .role-icon { color: #1cc88a; }
+        .role-card-owner .role-icon { color: #f6c23e; }
+    </style>
+</head>
+
+<body class="bg-gradient-primary">
+
+    <div class="container">
+        <div class="row justify-content-center" style="min-height: 100vh; align-items: center;">
+            <div class="col-lg-10">
+                
+                <div class="text-center mb-5">
+                    <h1 class="h2 text-white mb-2">
+                        <i class="fas fa-dumbbell mr-2"></i>
+                        Lembah Fitness
+                    </h1>
+                    <p class="text-white-50">Sistem Informasi Manajemen</p>
+                    <h4 class="text-white mt-4">Pilih Role Anda</h4>
+                </div>
+
+                <div class="row">
+                    
+                    <!-- Admin Card -->
+                    <div class="col-md-4 mb-4">
+                        <a href="{{ url_for('login', role='admin') }}" style="text-decoration: none;">
+                            <div class="card role-card role-card-admin shadow-lg border-0 h-100">
+                                <div class="card-body text-center p-5">
+                                    <div class="role-icon">
+                                        <i class="fas fa-user-shield"></i>
+                                    </div>
+                                    <h5 class="font-weight-bold mb-3">Administrator</h5>
+                                    <p class="text-gray-600 mb-0">
+                                        Kelola member, transaksi, dan operasional harian gym
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Personal Trainer Card -->
+                    <div class="col-md-4 mb-4">
+                        <a href="{{ url_for('login', role='pt') }}" style="text-decoration: none;">
+                            <div class="card role-card role-card-pt shadow-lg border-0 h-100">
+                                <div class="card-body text-center p-5">
+                                    <div class="role-icon">
+                                        <i class="fas fa-dumbbell"></i>
+                                    </div>
+                                    <h5 class="font-weight-bold mb-3">Personal Trainer</h5>
+                                    <p class="text-gray-600 mb-0">
+                                        Catat progres latihan dan pantau perkembangan member binaan
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Owner/Manager Card -->
+                    <div class="col-md-4 mb-4">
+                        <a href="{{ url_for('login', role='manager') }}" style="text-decoration: none;">
+                            <div class="card role-card role-card-owner shadow-lg border-0 h-100">
+                                <div class="card-body text-center p-5">
+                                    <div class="role-icon">
+                                        <i class="fas fa-crown"></i>
+                                    </div>
+                                    <h5 class="font-weight-bold mb-3">Pemilik / Manager</h5>
+                                    <p class="text-gray-600 mb-0">
+                                        Analisis bisnis, kelola staff, dan pantau performa gym
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- Member Login Link -->
+                <div class="text-center mt-4">
+                    <p class="text-white-50">
+                        Anda seorang member? 
+                        <a href="{{ url_for('index') }}" class="text-white font-weight-bold">
+                            Login di Website Utama
+                        </a>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='admin_assets/vendor/jquery/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='admin_assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+
+</body>
+</html>

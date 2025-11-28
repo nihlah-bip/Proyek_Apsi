@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -18,6 +19,38 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lembah_fitness.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+
+# ==========================================
+# DECORATOR UNTUK PROTEKSI ROUTE
+# ==========================================
+def login_required(f):
+    """Decorator untuk memastikan user sudah login"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Silakan login terlebih dahulu.', 'warning')
+            return redirect(url_for('select_role'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def role_required(*roles):
+    """Decorator untuk memastikan user memiliki role tertentu"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                flash('Silakan login terlebih dahulu.', 'warning')
+                return redirect(url_for('select_role'))
+            
+            if session.get('role') not in roles:
+                flash(f'Akses ditolak. Halaman ini hanya untuk {", ".join(roles)}.', 'danger')
+                return redirect(url_for('index'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # Compute absolute DB path for debugging; helpful to detect which sqlite file is used at runtime
 DB_ABS_PATH = None
@@ -87,6 +120,9 @@ class Member(db.Model):
 
     # Personal trainer yang dipilih (khusus program Personal Trainer)
     trainer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # User account untuk login member (optional - untuk member yang punya akun)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     # Status Membership
     status = db.Column(db.String(20), default='Aktif')
@@ -98,6 +134,8 @@ class Member(db.Model):
     latihan = db.relationship('Latihan', backref='member', lazy=True)
     # Relationship to User (personal trainer)
     trainer = db.relationship('User', foreign_keys=[trainer_id], backref='clients', lazy=True)
+    # Relationship to User (member account)
+    user_account = db.relationship('User', foreign_keys=[user_id], backref='member_profile', lazy=True)
 
     @property
     def personal_trainer(self):
@@ -156,6 +194,16 @@ class EquipmentPreset(db.Model):
 # --- BAGIAN PUBLIC (MEMBER/PENGUNJUNG) ---
 @app.route('/')
 def index():
+    # Jika sudah login, redirect ke dashboard sesuai role
+    if 'user_id' in session:
+        role = session.get('role')
+        if role == 'pt':
+            return redirect(url_for('pt_dashboard'))
+        elif role == 'manager':
+            return redirect(url_for('owner_dashboard'))
+        elif role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+    
     return render_template('public/home.html')
 
 
@@ -235,9 +283,55 @@ def member_dashboard_public():
 
     return render_template('member/dashboard.html', member=member, logs=logs, is_expired=is_expired)
 
+# --- ROUTE PORTAL PEMILIHAN ROLE ---
+@app.route('/admin/select-role')
+def select_role():
+    return render_template('admin/select_role.html')
+
+
+# --- ROUTE LOGIN MEMBER (PUBLIC) ---
+@app.route('/member/login', methods=['GET', 'POST'])
+def member_login_page():
+    """Halaman login khusus untuk member dari website public"""
+    return render_template('public/member_login.html')
+
+@app.route('/member/login-process', methods=['POST'])
+def member_login():
+    """Proses login member dari public website"""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    # Cek user dengan role member
+    user = User.query.filter_by(username=username, role='member').first()
+    
+    if user and check_password_hash(user.password, password):
+        # Cari member profile yang linked
+        member = Member.query.filter_by(user_id=user.id).first()
+        
+        if member:
+            # Login berhasil
+            session.clear()
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role
+            session['member_id'] = member.id
+            
+            flash(f'Selamat datang, {member.nama_lengkap}!', 'success')
+            return redirect(url_for('member_dashboard', id=member.id))
+        else:
+            flash('Data member tidak ditemukan. Hubungi admin gym.', 'danger')
+    else:
+        flash('Username atau Password salah! Pastikan Anda member Personal Trainer.', 'danger')
+    
+    return redirect(url_for('member_login_page'))
+
+
 # --- ROUTE LOGIN (PINTU MASUK) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Ambil parameter role dari URL (jika ada)
+    expected_role = request.args.get('role')
+    
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -246,25 +340,61 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password, password):
+            # Validasi role jika ada expected_role
+            if expected_role and user.role != expected_role:
+                flash(f'Akses ditolak! Akun Anda bukan {expected_role}.', 'danger')
+                return redirect(url_for('login', role=expected_role))
+            
             session.clear() # Bersihkan sesi lama
             # Simpan data login baru
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role
-            return redirect(url_for('admin_dashboard'))
+            
+            # Redirect berdasarkan role
+            if user.role == 'pt':
+                return redirect(url_for('pt_dashboard'))
+            elif user.role == 'manager':
+                return redirect(url_for('owner_dashboard'))
+            elif user.role == 'member':
+                # Cari member profile yang linked dengan user ini
+                member = Member.query.filter_by(user_id=user.id).first()
+                if member:
+                    return redirect(url_for('member_dashboard', id=member.id))
+                else:
+                    flash('Data member tidak ditemukan. Hubungi admin.', 'danger')
+                    return redirect(url_for('login'))
+            else:  # admin atau role lain
+                return redirect(url_for('admin_dashboard'))
         else:
             flash('Username atau Password Salah!', 'danger')
-            
-    return render_template('admin/login.html')
+    
+    # GET request - tampilkan form login dengan info role
+    role_display = {
+        'admin': 'Administrator',
+        'pt': 'Personal Trainer',
+        'manager': 'Pemilik / Manager'
+    }.get(expected_role, 'Staff')
+    
+    return render_template('admin/login.html', expected_role=expected_role, role_display=role_display)
 
 # --- ROUTE LOGOUT ---
 @app.route('/logout')
 def logout():
+    # Cek apakah member yang logout
+    is_member = session.get('role') == 'member'
     session.clear()
-    return redirect(url_for('login'))
+    
+    # Redirect berdasarkan tipe user
+    if is_member:
+        flash('Anda telah logout. Terima kasih!', 'success')
+        return redirect(url_for('index'))
+    else:
+        return redirect(url_for('select_role'))
 
 # --- BAGIAN ADMIN (DASHBOARD & SISTEM) ---
 @app.route('/admin')
+@login_required
 def admin_dashboard():
     """
     Dashboard admin dengan data:
@@ -335,8 +465,93 @@ def admin_dashboard():
     )
 
 
+# --- DASHBOARD KHUSUS OWNER/MANAGER ---
+@app.route('/owner')
+@role_required('manager')
+def owner_dashboard():
+    """
+    Dashboard khusus untuk pemilik/manager dengan analisis bisnis lengkap
+    """
+    if 'user_id' not in session or session.get('role') != 'manager':
+        flash('Akses ditolak. Hanya untuk Manager.', 'warning')
+        return redirect(url_for('login'))
+
+    today = datetime.utcnow().date()
+    year = today.year
+    year_str = str(year)
+
+    # Label bulan untuk chart
+    month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+    # ===== 1. Pemasukan bulanan =====
+    income_per_month = [0] * 12
+
+    income_rows = (
+        db.session.query(
+            func.strftime('%m', Pembayaran.tanggal_bayar).label('month'),
+            func.sum(Pembayaran.nominal)
+        )
+        .filter(func.strftime('%Y', Pembayaran.tanggal_bayar) == year_str)
+        .group_by('month')
+        .all()
+    )
+
+    for month_str, total in income_rows:
+        idx = int(month_str) - 1
+        income_per_month[idx] = int(total or 0)
+
+    current_month_index = today.month - 1
+    month_income_value = income_per_month[current_month_index]
+    year_income_value = sum(income_per_month)
+
+    # ===== 2. Pendaftaran member per program =====
+    programs = ['Insidental', 'Reguler', 'Personal Trainer']
+    registrations_per_program = {p: [0] * 12 for p in programs}
+
+    reg_rows = (
+        db.session.query(
+            func.strftime('%m', Member.tgl_daftar).label('month'),
+            Member.program,
+            func.count(Member.id)
+        )
+        .filter(func.strftime('%Y', Member.tgl_daftar) == year_str)
+        .group_by('month', Member.program)
+        .all()
+    )
+
+    for month_str, program, count in reg_rows:
+        idx = int(month_str) - 1
+        if program in registrations_per_program:
+            registrations_per_program[program][idx] = int(count or 0)
+
+    # ===== 3. Total member per program (untuk pie chart) =====
+    program_counts = {}
+    for prog in programs:
+        count = Member.query.filter_by(program=prog).count()
+        program_counts[prog] = count
+
+    # ===== 4. Statistik tambahan =====
+    active_members = Member.query.filter(Member.tgl_habis >= today).count()
+    total_trainers = User.query.filter_by(role='pt').count()
+
+    return render_template(
+        'admin/dashboard_owner.html',
+        labels=month_labels,
+        income_data=income_per_month,
+        registrations_data=registrations_per_program,
+        program_counts=program_counts,
+        month_income=month_income_value,
+        year_income=year_income_value,
+        active_members=active_members,
+        total_trainers=total_trainers,
+        year=year
+    )
+
+
 # --- HALAMAN MANAJEMEN MEMBER ---
 @app.route('/admin/members')
+@role_required('admin', 'manager')
 def manage_members():
     # Ambil semua data member, urutkan dari yang paling baru daftar
     # Include all members in the management table so admin can see active/non-active for everyone
@@ -354,6 +569,7 @@ def manage_members():
 
 # HAPUS MEMBER
 @app.route('/admin/members/delete/<int:member_id>', methods=['POST'])
+@role_required('admin', 'manager')
 def delete_member(member_id):
     member = Member.query.get_or_404(member_id)
 
@@ -370,6 +586,7 @@ def delete_member(member_id):
 
 # --- HALAMAN INPUT PEMBAYARAN (KASIR) ---
 @app.route('/admin/payments', methods=['GET', 'POST'])
+@role_required('admin', 'manager')
 def payments():
     if request.method == 'POST':
         member_id = request.form['member_id']
@@ -416,12 +633,10 @@ def payments():
 
 
 @app.route('/admin/training', methods=['GET', 'POST'])
+@role_required('pt', 'manager', 'admin')
 def training():
     # Halaman input latihan & progres (oleh trainer)
     # Access: PT, Manager, Admin
-    if 'user_id' not in session or session.get('role') not in ('pt', 'manager', 'admin'):
-        flash('Silakan login sebagai Personal Trainer/Manager/Admin untuk mengakses halaman ini.', 'warning')
-        return redirect(url_for('login'))
     if request.method == 'POST':
         # Ambil data dari form
         member_id = request.form.get('member_id')
@@ -568,11 +783,8 @@ def delete_latihan(latihan_id):
 
 # --- FITUR MANAGER: KELOLA STAFF (READ & CREATE) ---
 @app.route('/admin/staff', methods=['GET', 'POST'])
+@role_required('manager')
 def manage_staff():
-    # Cek Login & Cek Role (Hanya Manager yang boleh akses)
-    if 'user_id' not in session: return redirect(url_for('login'))
-    if session.get('role') != 'manager': return "Akses Ditolak! Hanya Manager.", 403
-
     # LOGIKA TAMBAH STAFF BARU (CREATE)
     if request.method == 'POST':
         username = request.form['username']
@@ -602,11 +814,8 @@ def manage_staff():
 
 
 @app.route('/admin/trainers', methods=['GET', 'POST'])
+@role_required('manager')
 def manage_trainers():
-    # Admin/Manager only
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -640,10 +849,8 @@ def manage_trainers():
 
 
 @app.route('/admin/trainers/delete/<int:id>', methods=['POST'])
+@role_required('manager')
 def delete_trainer(id):
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     pt = User.query.get_or_404(id)
     if pt.role != 'pt':
@@ -659,9 +866,8 @@ def delete_trainer(id):
 
 # --- FITUR HAPUS STAFF (DELETE) ---
 @app.route('/admin/staff/delete/<int:id>', methods=['POST'])
+@role_required('manager')
 def delete_staff(id):
-    if 'user_id' not in session or session.get('role') != 'manager':
-        return redirect(url_for('login'))
     
     user_to_delete = User.query.get_or_404(id)
     
@@ -677,11 +883,8 @@ def delete_staff(id):
 
 
 @app.route('/admin/member/<int:member_id>')
+@role_required('manager', 'admin', 'pt')
 def admin_member_detail(member_id):
-    if 'user_id' not in session:
-        flash('Silakan login terlebih dahulu.', 'warning')
-        return redirect(url_for('login'))
-
     member = Member.query.get_or_404(member_id)
 
     # Allow access if manager/admin, or if PT who owns this member
@@ -689,20 +892,16 @@ def admin_member_detail(member_id):
     if role == 'pt':
         if member.trainer_id != session.get('user_id'):
             flash('Akses ditolak. Hanya trainer yang membina member ini.', 'warning')
-            return redirect(url_for('login'))
-    elif role not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
+            return redirect(url_for('pt_dashboard'))
+    
     logs = Latihan.query.filter_by(member_id=member.id).order_by(Latihan.tanggal.desc()).limit(50).all()
 
     return render_template('admin/member_detail.html', member=member, logs=logs)
 
 
 @app.route('/admin/trainer/<int:trainer_id>')
+@role_required('manager', 'admin', 'pt')
 def admin_trainer_members(trainer_id):
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     trainer = User.query.get_or_404(trainer_id)
     # Ambil member yang memilih trainer ini
@@ -720,6 +919,7 @@ with app.app_context():
 
 # --- HALAMAN REGISTRASI & TRANSAKSI (ALL IN ONE) ---
 @app.route('/admin/registrasi', methods=['GET', 'POST'])
+@role_required('admin', 'manager')
 def registrasi():
     if request.method == 'POST':
         app.logger.debug(f"Registrasi POST received. form keys: {list(request.form.keys())}")
@@ -728,6 +928,18 @@ def registrasi():
         nama = request.form['nama']
         no_wa = request.form['no_wa']
         nominal = int(request.form['nominal'])  # Harga otomatis dari form
+        
+        # Ambil username & password member (hanya untuk PT)
+        username_member = request.form.get('username_member')
+        password_member = request.form.get('password_member')
+        
+        # Validasi username member tidak duplikat (hanya jika ada)
+        if username_member:
+            existing_user = User.query.filter_by(username=username_member).first()
+            if existing_user:
+                flash(f'Username "{username_member}" sudah dipakai! Gunakan username lain.', 'danger')
+                trainers = User.query.filter_by(role='pt').all()
+                return render_template('admin/registrasi.html', trainers=trainers)
 
         # 2. Siapkan Variabel Opsional
         gender = None
@@ -799,7 +1011,34 @@ def registrasi():
             flash('Gagal menyimpan member. Lihat log server untuk detail.', 'danger')
             return redirect(url_for('registrasi'))
 
-        # 5. Otomatis Catat Pembayaran
+        # 5. Buat Akun Login untuk Member (hanya untuk Personal Trainer)
+        user_member_id = None
+        if program == 'Personal Trainer' and username_member and password_member:
+            hashed_password = generate_password_hash(password_member)
+            user_member = User(
+                username=username_member,
+                password=hashed_password,
+                role='member'
+            )
+            db.session.add(user_member)
+            try:
+                db.session.commit()
+                user_member_id = user_member.id
+                app.logger.debug(f"Member user account created: username={username_member} for member_id={member_baru.id}")
+                
+                # Link user_id ke member
+                member_baru.user_id = user_member_id
+                db.session.commit()
+                flash(f'Member Personal Trainer berhasil didaftarkan dengan akun login!', 'success')
+                
+            except Exception as e:
+                db.session.rollback()
+                app.logger.exception("Failed to create member user account")
+                flash('Member berhasil dibuat, tapi gagal membuat akun login.', 'warning')
+        else:
+            flash(f'Member {program} berhasil didaftarkan!', 'success')
+
+        # 6. Otomatis Catat Pembayaran
         bayar_baru = Pembayaran(
             member_id=member_baru.id,
             nominal=nominal,
@@ -817,11 +1056,8 @@ def registrasi():
 
 
 @app.route('/admin/members/all')
+@role_required('manager', 'admin')
 def debug_all_members():
-    # Admin-only debug route to list all members (temporary)
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     rows = Member.query.order_by(Member.id.desc()).all()
     lines = ['<h3>All Members (debug)</h3>', '<table border="1" cellpadding="6"><tr><th>ID</th><th>Nama</th><th>Program</th><th>Tgl Habis</th><th>Status</th></tr>']
@@ -834,28 +1070,74 @@ def debug_all_members():
 # --- ROUTE DARURAT: PAKSA BUAT AKUN ---
 @app.route('/buat_akun_darurat')
 def buat_akun_darurat():
-    # 1. Hash Password
-    password_aman = generate_password_hash('admin123')
+    """
+    Route untuk membuat akun dummy untuk testing:
+    - Manager: username=manager, password=admin123
+    - Admin: username=admin, password=admin123
+    - PT: username=trainer1, password=trainer123
+    """
+    messages = []
     
-    # 2. Cek apakah user manager sudah ada?
-    cek_user = User.query.filter_by(username='manager').first()
+    # 1. MANAGER
+    password_manager = generate_password_hash('admin123')
+    cek_manager = User.query.filter_by(username='manager').first()
     
-    if cek_user:
-        # Kalau ada, kita update passwordnya saja biar yakin
-        cek_user.password = password_aman
+    if cek_manager:
+        cek_manager.password = password_manager
         db.session.commit()
-        return "Akun 'manager' SUDAH ADA. Password telah di-reset jadi: admin123. Silakan Login."
+        messages.append("✅ Akun 'manager' sudah ada. Password di-reset: admin123")
     else:
-        # Kalau belum ada, kita buat baru
-        manager_baru = User(username='manager', password=password_aman, role='manager')
+        manager_baru = User(username='manager', password=password_manager, role='manager')
         db.session.add(manager_baru)
         db.session.commit()
-        return "BERHASIL! Akun 'manager' baru saja dibuat. Password: admin123. Silakan Login."
+        messages.append("✅ Akun 'manager' berhasil dibuat. Password: admin123")
+    
+    # 2. ADMIN
+    password_admin = generate_password_hash('admin123')
+    cek_admin = User.query.filter_by(username='admin').first()
+    
+    if cek_admin:
+        cek_admin.password = password_admin
+        db.session.commit()
+        messages.append("✅ Akun 'admin' sudah ada. Password di-reset: admin123")
+    else:
+        admin_baru = User(username='admin', password=password_admin, role='admin')
+        db.session.add(admin_baru)
+        db.session.commit()
+        messages.append("✅ Akun 'admin' berhasil dibuat. Password: admin123")
+    
+    # 3. PERSONAL TRAINER
+    password_pt = generate_password_hash('trainer123')
+    cek_pt = User.query.filter_by(username='trainer1').first()
+    
+    if cek_pt:
+        cek_pt.password = password_pt
+        db.session.commit()
+        messages.append("✅ Akun 'trainer1' sudah ada. Password di-reset: trainer123")
+    else:
+        pt_baru = User(username='trainer1', password=password_pt, role='pt')
+        db.session.add(pt_baru)
+        db.session.commit()
+        messages.append("✅ Akun 'trainer1' berhasil dibuat. Password: trainer123")
+    
+    result = "<h2>Akun Dummy Berhasil Dibuat!</h2><br>"
+    result += "<h3>Daftar Akun:</h3><ul>"
+    result += "<li><strong>Manager:</strong> username=<code>manager</code>, password=<code>admin123</code></li>"
+    result += "<li><strong>Admin:</strong> username=<code>admin</code>, password=<code>admin123</code></li>"
+    result += "<li><strong>Personal Trainer:</strong> username=<code>trainer1</code>, password=<code>trainer123</code></li>"
+    result += "</ul><br><h3>Status:</h3><ul>"
+    for msg in messages:
+        result += f"<li>{msg}</li>"
+    result += "</ul><br>"
+    result += f"<a href='{url_for('select_role')}' style='padding:10px 20px; background:#4e73df; color:white; text-decoration:none; border-radius:5px;'>Login Sekarang</a>"
+    
+    return result
 
 # ==========================================
 # ROUTE KHUSUS DASHBOARD PT (TRAINER)
 # ==========================================
 @app.route('/pt/dashboard')
+@role_required('pt')
 def pt_dashboard():
     # Require PT login
     if 'user_id' not in session or session.get('role') != 'pt':
@@ -869,11 +1151,8 @@ def pt_dashboard():
 
 
 @app.route('/admin/queue', methods=['GET', 'POST'])
+@role_required('manager')
 def queue_analysis():
-    # Cek login & role (hanya manager/admin boleh akses)
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak. Silakan login sebagai Manager/Admin.', 'warning')
-        return redirect(url_for('login'))
 
     # Debug: log who accessed this route and which DB file is active
     try:
@@ -1028,10 +1307,8 @@ def queue_analysis():
 
 
 @app.route('/admin/queue/export')
+@role_required('manager')
 def export_queue_csv():
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     import io, csv
     out = io.StringIO()
@@ -1061,10 +1338,8 @@ def export_queue_csv():
 
 
 @app.route('/admin/queue/clear', methods=['POST'])
+@role_required('manager')
 def clear_queue_history():
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     try:
         # Hapus semua entri QueueAnalysis
@@ -1079,10 +1354,8 @@ def clear_queue_history():
 
 
 @app.route('/admin/queue/delete/<int:id>', methods=['POST'])
+@role_required('manager')
 def delete_queue_entry(id):
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     try:
         qa = QueueAnalysis.query.get(id)
@@ -1100,10 +1373,8 @@ def delete_queue_entry(id):
 
 
 @app.route('/admin/queue/presets', methods=['GET', 'POST'])
+@role_required('manager')
 def queue_presets():
-    if 'user_id' not in session or session.get('role') not in ('manager', 'admin'):
-        flash('Akses ditolak.', 'warning')
-        return redirect(url_for('login'))
 
     equipments = [
         'Treadmill','Static Bike','Elliptical','Rowing Machine','Stair Climber',
@@ -1144,6 +1415,12 @@ def queue_presets():
 # Akses lewat browser: /member/dashboard/1 (angka 1 adalah ID member)
 @app.route('/member/dashboard/<int:id>')
 def member_dashboard(id):
+    # Validasi: jika logged in sebagai member, hanya bisa akses dashboard sendiri
+    if 'role' in session and session['role'] == 'member':
+        if 'member_id' in session and session['member_id'] != id:
+            flash('Anda tidak memiliki akses ke dashboard member lain!', 'danger')
+            return redirect(url_for('member_dashboard', id=session['member_id']))
+    
     # Ambil data member
     member = Member.query.get_or_404(id)
     

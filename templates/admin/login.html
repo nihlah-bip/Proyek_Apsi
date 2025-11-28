@@ -25,6 +25,12 @@
                                 <div class="p-5">
                                     <div class="text-center">
                                         <h1 class="h4 text-gray-900 mb-4">Selamat Datang!</h1>
+                                        {% if expected_role %}
+                                            <div class="alert alert-info" role="alert">
+                                                <i class="fas fa-info-circle mr-2"></i>
+                                                Login sebagai: <strong>{{ role_display }}</strong>
+                                            </div>
+                                        {% endif %}
                                         <p class="mb-4">Sistem Informasi Manajemen<br><b>Lembah Fitness</b></p>
                                     </div>
 
@@ -38,7 +44,7 @@
                                         {% endif %}
                                     {% endwith %}
 
-                                    <form class="user" method="POST" action="{{ url_for('login') }}">
+                                    <form class="user" method="POST" action="{{ url_for('login', role=expected_role) if expected_role else url_for('login') }}">
                                         <div class="form-group">
                                             <input type="text" name="username" class="form-control form-control-user"
                                                 placeholder="Masukkan Username..." required>
@@ -52,6 +58,11 @@
                                         </button>
                                     </form>
                                     <hr>
+                                    <div class="text-center">
+                                        <a class="small" href="{{ url_for('select_role') }}">
+                                            <i class="fas fa-arrow-left mr-1"></i> Kembali ke Pilihan Role
+                                        </a>
+                                    </div>
                                     <div class="text-center">
                                         <a class="small" href="#">Lupa Password? Hubungi Manager.</a>
                                     </div>

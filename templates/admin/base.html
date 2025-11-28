@@ -25,7 +25,7 @@
 
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 
-            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('admin_dashboard') }}">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% if session.role == 'pt' %}{{ url_for('pt_dashboard') }}{% else %}{{ url_for('admin_dashboard') }}{% endif %}">
                 <div class="sidebar-brand-icon rotate-n-15">
                     <i class="fas fa-dumbbell"></i>
                 </div>
@@ -34,36 +34,125 @@
 
             <hr class="sidebar-divider my-0">
 
+            <!-- Dashboard hanya untuk Manager/Pemilik -->
+            {% if session.role == 'manager' %}
             <li class="nav-item active">
-                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                <a class="nav-link" href="{{ url_for('owner_dashboard') }}">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
                     <span>Dashboard</span></a>
             </li>
 
             <hr class="sidebar-divider">
+            {% endif %}
 
+            <!-- MENU UNTUK ADMIN -->
+            {% if session.role == 'admin' %}
             <div class="sidebar-heading">
                 Interface
             </div>
-
+            
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
-                    aria-expanded="true" aria-controls="collapseTwo">
-                    <i class="fas fa-fw fa-cog"></i>
-                    <span>Manajemen</span>
+                <a class="nav-link" href="{{ url_for('registrasi') }}">
+                    <i class="fas fa-fw fa-plus-circle"></i>
+                    <span>Transaksi Baru</span>
                 </a>
-                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-innerrounded">
-                        <h6 class="collapse-header">Menu Admin:</h6>
+            </li>
+            
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('manage_members') }}">
+                    <i class="fas fa-fw fa-users"></i>
+                    <span>Data Member</span>
+                </a>
+            </li>
+            
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('payments') }}">
+                    <i class="fas fa-fw fa-dollar-sign"></i>
+                    <span>Pembayaran</span>
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- MENU UNTUK MANAGER/PEMILIK -->
+            {% if session.role == 'manager' %}
+            <div class="sidebar-heading">
+                Interface
+            </div>
+            
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseManager"
+                    aria-expanded="true" aria-controls="collapseManager">
+                    <i class="fas fa-fw fa-chart-line"></i>
+                    <span>Manajemen Bisnis</span>
+                </a>
+                <div id="collapseManager" class="collapse" aria-labelledby="headingManager" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Menu Pemilik:</h6>
                         <a class="collapse-item" href="{{ url_for('registrasi') }}">Transaksi Baru</a>
                         <a class="collapse-item" href="{{ url_for('manage_members') }}">Data Member</a>
+                        <a class="collapse-item" href="{{ url_for('payments') }}">Pembayaran</a>
+                        <a class="collapse-item" href="{{ url_for('manage_staff') }}">Kelola Staff</a>
+                        <a class="collapse-item" href="{{ url_for('manage_trainers') }}">Kelola Trainer</a>
                     </div>
                 </div>
             </li>
+            
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('queue_analysis') }}">
+                    <i class="fas fa-fw fa-chart-area"></i>
+                    <span>Analisis Antrian</span>
+                </a>
+            </li>
+            {% endif %}
 
+<!-- ==================== MENU KHUSUS PT ==================== -->
+{% if session.role == 'pt' %}
 <hr class="sidebar-divider">
 <div class="sidebar-heading">
     Personal Trainer
+</div>
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('pt_dashboard') }}">
+        <i class="fas fa-fw fa-tachometer-alt"></i>
+        <span>Dashboard</span>
+    </a>
+</li>
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('training') }}">
+        <i class="fas fa-fw fa-dumbbell"></i>
+        <span>Input Latihan & Progres</span>
+    </a>
+</li>
+
+<!-- Members yang dibina PT ini -->
+<li class="nav-item">
+    <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMyMembers"
+        aria-expanded="true" aria-controls="collapseMyMembers">
+        <i class="fas fa-fw fa-users"></i>
+        <span>Member Binaan Saya</span>
+    </a>
+    <div id="collapseMyMembers" class="collapse" aria-labelledby="headingMyMembers" data-parent="#accordionSidebar">
+        <div class="bg-white py-2 collapse-inner rounded">
+            <h6 class="collapse-header">Daftar Member:</h6>
+            {% for m in sidebar_members %}
+                {% if m.trainer_id == session.user_id|int %}
+                    <a class="collapse-item" href="{{ url_for('admin_member_detail', member_id=m.id) }}">{{ m.nama_lengkap }}</a>
+                {% endif %}
+            {% else %}
+                <span class="collapse-item small text-muted">Belum ada member.</span>
+            {% endfor %}
+        </div>
+    </div>
+</li>
+{% endif %}
+
+<!-- ==================== MENU UNTUK MANAGER (Full Access) ==================== -->
+{% if session.role == 'manager' %}
+<hr class="sidebar-divider">
+<div class="sidebar-heading">
+    Training & Data
 </div>
 
 <li class="nav-item">
@@ -73,14 +162,7 @@
     </a>
 </li>
 
-<li class="nav-item">
-    <a class="nav-link" href="{{ url_for('queue_analysis') }}">
-        <i class="fas fa-fw fa-chart-area"></i>
-        <span>Analisis Antrian</span>
-    </a>
-</li>
-
-<!-- Personal trainers quick list -->
+<!-- Personal trainers quick list (Hanya untuk Manager) -->
 <li class="nav-item">
     <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTrainers"
         aria-expanded="true" aria-controls="collapseTrainers">
@@ -101,7 +183,7 @@
     </div>
 </li>
 
-<!-- Members quick list -->
+<!-- Members quick list (Hanya untuk Manager) -->
 <li class="nav-item">
     <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMembers"
         aria-expanded="true" aria-controls="collapseMembers">
@@ -119,6 +201,7 @@
         </div>
     </div>
 </li>
+{% endif %}
 
             <hr class="sidebar-divider d-none d-md-block">
 
@@ -128,7 +211,19 @@
 
             <div class="sidebar-card d-none d-lg-flex">
                 <img class="sidebar-card-illustration mb-2" src="{{ url_for('static', filename='admin_assets/img/undraw_rocket.svg') }}" alt="...">
-                <p class="text-center mb-2"><strong>Mode Admin</strong> Aktif</p>
+                <p class="text-center mb-2">
+                    <strong>
+                        {% if session.role == 'admin' %}
+                            Mode Admin
+                        {% elif session.role == 'pt' %}
+                            Mode Personal Trainer
+                        {% elif session.role == 'manager' %}
+                            Mode Manager
+                        {% else %}
+                            Mode Staff
+                        {% endif %}
+                    </strong> Aktif
+                </p>
             </div>
 
         </ul>
@@ -200,7 +295,16 @@
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Admin Lembah</span>
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">
+                                    {{ session.username|title }}
+                                    {% if session.role == 'admin' %}
+                                        <span class="badge badge-primary">Admin</span>
+                                    {% elif session.role == 'pt' %}
+                                        <span class="badge badge-success">PT</span>
+                                    {% elif session.role == 'manager' %}
+                                        <span class="badge badge-warning">Manager</span>
+                                    {% endif %}
+                                </span>
                                 <img class="img-profile rounded-circle"
                                     src="{{ url_for('static', filename='admin_assets/img/undraw_profile.svg') }}">
                             </a>
@@ -251,7 +355,7 @@
                 <div class="modal-body">Pilih "Logout" di bawah jika Anda ingin mengakhiri sesi ini.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <a class="btn btn-primary" href="{{ url_for('index') }}">Logout</a>
+                    <a class="btn btn-primary" href="{{ url_for('logout') }}">Logout</a>
                 </div>
             </div>
         </div>

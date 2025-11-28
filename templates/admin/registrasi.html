@@ -42,6 +42,31 @@
                     </div>
                 </div>
 
+                <!-- AKUN LOGIN MEMBER (Hanya untuk PT) -->
+                <div id="akunLoginMember" style="display:none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Akun Login Member:</strong> Buat username & password untuk member Personal Trainer agar bisa login ke dashboard member.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Username <span class="text-danger">*</span></label>
+                                <input type="text" name="username_member" id="usernameMember" class="form-control" placeholder="Contoh: member123">
+                                <small class="form-text text-muted">Username untuk login member (harus unik)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Password <span class="text-danger">*</span></label>
+                                <input type="password" name="password_member" id="passwordMember" class="form-control" placeholder="Min. 6 karakter" minlength="6">
+                                <small class="form-text text-muted">Password untuk login member</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
                 <!-- DATA LANJUTAN (untuk Reguler & PT) -->
                 <div id="formLanjutan" style="display:none;">
                     <div class="row">
@@ -143,11 +168,19 @@ function updateForm() {
     var program = document.getElementById("pilihProgram").value;
     var formLanjutan = document.getElementById("formLanjutan");
     var formFisik = document.getElementById("formFisik");
+    var akunLogin = document.getElementById("akunLoginMember");
     var nominal = document.getElementById("nominalBayar");
+    var usernameMember = document.getElementById("usernameMember");
+    var passwordMember = document.getElementById("passwordMember");
 
     // reset
     formLanjutan.style.display = "none";
     formFisik.style.display = "none";
+    akunLogin.style.display = "none";
+    
+    // Hapus required dari username dan password
+    usernameMember.removeAttribute("required");
+    passwordMember.removeAttribute("required");
 
     if (program === "Insidental") {
         nominal.value = 35000;
@@ -159,7 +192,12 @@ function updateForm() {
     } else if (program === "Personal Trainer") {
         formLanjutan.style.display = "block";
         formFisik.style.display = "block";
+        akunLogin.style.display = "block";
         nominal.value = 650000;
+        
+        // Tambahkan required untuk PT
+        usernameMember.setAttribute("required", "required");
+        passwordMember.setAttribute("required", "required");
     }
 }
 </script>
