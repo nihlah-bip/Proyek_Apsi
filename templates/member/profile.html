@@ -1,0 +1,25 @@
+{% extends 'member/base.html' %}
+
+{% block title %}Profil Saya{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h4 class="card-title">Profil: {{ member.nama_lengkap }}</h4>
+        <p><strong>Program:</strong> {{ member.program }}</p>
+        <p><strong>Telepon / WA:</strong> {{ member.no_wa }}</p>
+        <p><strong>Alamat:</strong> {{ member.alamat or '-' }}</p>
+        <p><strong>Tanggal Lahir:</strong> {{ member.ttl.strftime('%d %b %Y') if member.ttl else '-' }}</p>
+        <p><strong>Status:</strong> {{ member.status }}</p>
+        <p><strong>Berlaku Sampai:</strong> {{ member.tgl_habis.strftime('%d %b %Y') if member.tgl_habis else '-' }}</p>
+        {% if member.program == 'Personal Trainer' %}
+        <hr>
+        <h5>Data Fisik</h5>
+        <p><strong>Tinggi:</strong> {{ member.tinggi_badan or '-' }} cm</p>
+        <p><strong>Berat:</strong> {{ member.berat_badan or '-' }} kg</p>
+        <p><strong>Goals:</strong> {{ member.goals or '-' }}</p>
+        <p><strong>Personal Trainer:</strong> {{ member.personal_trainer or '-' }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

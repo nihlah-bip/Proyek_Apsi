@@ -71,6 +71,18 @@
                     <span>Pembayaran</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin_pegawai') }}">
+                    <i class="fas fa-fw fa-user-cog"></i>
+                    <span>Kelola Pegawai</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin_member_accounts') }}">
+                    <i class="fas fa-fw fa-user"></i>
+                    <span>Kelola Akun Member</span>
+                </a>
+            </li>
             {% endif %}
 
             <!-- MENU UNTUK MANAGER/PEMILIK -->
@@ -153,6 +165,13 @@
 </div>
 
 {# Removed manager's direct 'Input Latihan & Progres' link — only PTs see training input. #}
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('manager_members') }}">
+        <i class="fas fa-fw fa-users"></i>
+        <span>Daftar Member</span>
+    </a>
+</li>
 
 <!-- Personal trainers quick list (Hanya untuk Manager) -->
 <li class="nav-item">

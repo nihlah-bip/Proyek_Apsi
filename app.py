@@ -231,7 +231,10 @@ class EquipmentPreset(db.Model):
 class PasswordResetLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
-    plain_password = db.Column(db.String(200), nullable=False)
+    # Do NOT persist plaintext passwords. Keep this column nullable for
+    # backward-compatibility with existing DBs; application will no
+    # longer write plaintext here.
+    plain_password = db.Column(db.String(200), nullable=True)
     created_by = db.Column(db.Integer, nullable=True)  # admin id who reset
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -332,6 +335,23 @@ def member_dashboard_public():
         is_expired = True
 
     return render_template('member/dashboard.html', member=member, logs=logs, is_expired=is_expired)
+
+
+@app.route('/member/profile')
+@role_required('member')
+def member_profile():
+    # Member can view their own profile
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Silakan login terlebih dahulu.', 'warning')
+        return redirect(url_for('member_login_page'))
+
+    member = Member.query.filter_by(user_id=user_id).first()
+    if not member:
+        flash('Profil member tidak ditemukan. Hubungi admin.', 'danger')
+        return redirect(url_for('member_login_page'))
+
+    return render_template('member/profile.html', member=member)
 
 # --- ROUTE PORTAL PEMILIHAN ROLE ---
 @app.route('/admin/select-role')
@@ -601,7 +621,7 @@ def owner_dashboard():
 
 # --- HALAMAN MANAJEMEN MEMBER ---
 @app.route('/admin/members')
-@role_required('admin', 'manager')
+@role_required('admin')
 def manage_members():
     # Ambil semua data member, urutkan dari yang paling baru daftar
     # Include all members in the management table so admin can see active/non-active for everyone
@@ -615,6 +635,17 @@ def manage_members():
         members=all_members,
         today_date=today
     )
+
+
+# --- VIEW UNTUK MANAGER: baca-only daftar member ---
+@app.route('/manager/members')
+@role_required('manager')
+def manager_members():
+    # Manager sees a read-only member list (no create/delete)
+    all_members = Member.query.order_by(Member.id.desc()).all()
+    today = datetime.utcnow().date()
+
+    return render_template('admin/manager_members.html', members=all_members, today_date=today)
 
 
 # HAPUS MEMBER
@@ -896,6 +927,10 @@ def delete_latihan(latihan_id):
 @app.route('/admin/staff', methods=['GET', 'POST'])
 @role_required('admin', 'manager')
 def manage_staff():
+    # Jika admin mengakses route lama, arahkan ke halaman baru `/admin/pegawai`
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin_pegawai'))
+
     # LOGIKA TAMBAH STAFF BARU (CREATE)
     if request.method == 'POST':
         username = request.form['username']
@@ -927,15 +962,22 @@ def manage_staff():
     # TAMPILKAN TABEL STAFF (READ)
     all_users = User.query.order_by(User.role.asc()).all()
 
-    # Build last-password map for admin and manager users (sensitive)
-    # Managers are allowed to view the most-recent reset plaintext per requirement.
+    # Build last-password info map for admin and manager users (sensitive)
+    # We no longer persist plaintext for new resets. For compatibility we
+    # surface either the legacy plaintext (if present in older logs) or
+    # the timestamp of the last reset event so managers/admins can see when
+    # a reset occurred.
     last_pw = {}
     if session.get('role') in ('admin', 'manager'):
         user_ids = [u.id for u in all_users]
         logs = PasswordResetLog.query.filter(PasswordResetLog.user_id.in_(user_ids)).order_by(PasswordResetLog.created_at.desc()).all()
         for l in logs:
             if l.user_id not in last_pw:
-                last_pw[l.user_id] = l.plain_password
+                # store a small dict with optional legacy plain and timestamp
+                last_pw[l.user_id] = {
+                    'plain': l.plain_password if getattr(l, 'plain_password', None) else None,
+                    'at': l.created_at
+                }
 
     return render_template('admin/manage_staff.html', users=all_users, last_passwords=last_pw)
 
@@ -965,14 +1007,16 @@ def reset_staff_password(id):
     try:
         # Use scrypt to be consistent with other entries
         user.password = generate_password_hash(raw_pw, method='scrypt')
-        # Also log the plaintext password for manager reference
-        log = PasswordResetLog(user_id=user.id, plain_password=raw_pw, created_by=session.get('user_id'))
+
+        # Log the reset event but DO NOT persist the plaintext password.
+        # For audit, we keep a record that a reset happened and who performed it.
+        log = PasswordResetLog(user_id=user.id, plain_password=None, created_by=session.get('user_id'))
         db.session.add(log)
         db.session.commit()
 
         # If admin requested to display plaintext or we generated it, show it once
         if show_plain or generated:
-            flash(f"Password untuk {user.username}: {raw_pw} (tampil sekali) ", 'info')
+            flash(f"Password untuk {user.username}: {raw_pw} (tampil sekali)", 'info')
         else:
             flash(f'Password untuk {user.username} telah di-set.', 'success')
 
@@ -1030,6 +1074,104 @@ def delete_staff(id):
         flash('Akun berhasil dihapus.', 'success')
         
     return redirect(url_for('manage_staff'))
+
+
+# --- ADMIN-ONLY: Kelola Pegawai (staff CRUD) ---
+@app.route('/admin/pegawai', methods=['GET', 'POST'])
+@role_required('admin')
+def admin_pegawai():
+    """Admin-only page to list and create staff accounts (admin/pt/manager).
+    This separates staff management from the manager-facing view.
+    """
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+
+        if not username or not role:
+            flash('Username dan role wajib diisi.', 'danger')
+            return redirect(url_for('admin_pegawai'))
+
+        # disallow creating a manager unless a manager performs the action
+        if role == 'manager' and session.get('role') != 'manager':
+            flash('Pembuatan akun Manager dibatasi.', 'danger')
+            return redirect(url_for('admin_pegawai'))
+
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            flash('Username sudah ada.', 'warning')
+            return redirect(url_for('admin_pegawai'))
+
+        hashed = generate_password_hash(password or '')
+        new_user = User(username=username, password=hashed, role=role)
+        db.session.add(new_user)
+        db.session.commit()
+        flash(f'Akun {username} dibuat.', 'success')
+        return redirect(url_for('admin_pegawai'))
+
+    # GET -> list staff (exclude members)
+    staff_users = User.query.filter(User.role != 'member').order_by(User.role.asc(), User.username.asc()).all()
+    return render_template('admin/pegawai.html', users=staff_users)
+
+
+@app.route('/admin/pegawai/delete/<int:id>', methods=['POST'])
+@role_required('admin')
+def admin_pegawai_delete(id):
+    user = User.query.get_or_404(id)
+
+    # prevent deleting main manager account or self
+    if user.username == 'manager' or user.username == session.get('username'):
+        flash('Aksi tidak diizinkan pada akun ini.', 'warning')
+        return redirect(url_for('admin_pegawai'))
+
+    db.session.delete(user)
+    db.session.commit()
+    flash('Akun pegawai dihapus.', 'success')
+    return redirect(url_for('admin_pegawai'))
+
+
+# --- ADMIN: Kelola Akun Member (user.role == 'member') ---
+@app.route('/admin/accounts/members', methods=['GET', 'POST'])
+@role_required('admin')
+def admin_member_accounts():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if not username:
+            flash('Username wajib diisi.', 'danger')
+            return redirect(url_for('admin_member_accounts'))
+
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            flash('Username sudah ada.', 'warning')
+            return redirect(url_for('admin_member_accounts'))
+
+        hashed = generate_password_hash(password or '')
+        new_user = User(username=username, password=hashed, role='member')
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Akun member dibuat.', 'success')
+        return redirect(url_for('admin_member_accounts'))
+
+    members_accounts = User.query.filter_by(role='member').order_by(User.id.desc()).all()
+    return render_template('admin/member_accounts.html', users=members_accounts)
+
+
+@app.route('/admin/accounts/members/delete/<int:id>', methods=['POST'])
+@role_required('admin')
+def admin_member_accounts_delete(id):
+    user = User.query.get_or_404(id)
+    if user.role != 'member':
+        flash('Akun bukan member.', 'warning')
+        return redirect(url_for('admin_member_accounts'))
+
+    # also unlink member profile if exists
+    Member.query.filter_by(user_id=user.id).update({'user_id': None})
+    db.session.delete(user)
+    db.session.commit()
+    flash('Akun member dihapus.', 'success')
+    return redirect(url_for('admin_member_accounts'))
 
 
 @app.route('/admin/member/<int:member_id>')
