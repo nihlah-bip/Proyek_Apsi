@@ -234,7 +234,10 @@ class EquipmentPreset(db.Model):
 class PasswordResetLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
-    plain_password = db.Column(db.String(200), nullable=False)
+    # Do NOT persist plaintext passwords. Keep this column nullable for
+    # backward-compatibility with existing DBs; application will no
+    # longer write plaintext here.
+    plain_password = db.Column(db.String(200), nullable=True)
     created_by = db.Column(db.Integer, nullable=True)  # admin id who reset
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -996,14 +999,16 @@ def reset_staff_password(id):
     try:
         # Use scrypt to be consistent with other entries
         user.password = generate_password_hash(raw_pw, method='scrypt')
-        # Also log the plaintext password for manager reference
-        log = PasswordResetLog(user_id=user.id, plain_password=raw_pw, created_by=session.get('user_id'))
+
+        # Log the reset event but DO NOT persist the plaintext password.
+        # For audit, we keep a record that a reset happened and who performed it.
+        log = PasswordResetLog(user_id=user.id, plain_password=None, created_by=session.get('user_id'))
         db.session.add(log)
         db.session.commit()
 
         # If admin requested to display plaintext or we generated it, show it once
         if show_plain or generated:
-            flash(f"Password untuk {user.username}: {raw_pw} (tampil sekali) ", 'info')
+            flash(f"Password untuk {user.username}: {raw_pw} (tampil sekali)", 'info')
         else:
             flash(f'Password untuk {user.username} telah di-set.', 'success')
 
