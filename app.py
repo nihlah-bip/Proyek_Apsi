@@ -930,6 +930,10 @@ def delete_latihan(latihan_id):
 @app.route('/admin/staff', methods=['GET', 'POST'])
 @role_required('admin', 'manager')
 def manage_staff():
+    # Jika admin mengakses route lama, arahkan ke halaman baru `/admin/pegawai`
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin_pegawai'))
+
     # LOGIKA TAMBAH STAFF BARU (CREATE)
     if request.method == 'POST':
         username = request.form['username']
