@@ -336,6 +336,23 @@ def member_dashboard_public():
 
     return render_template('member/dashboard.html', member=member, logs=logs, is_expired=is_expired)
 
+
+@app.route('/member/profile')
+@role_required('member')
+def member_profile():
+    # Member can view their own profile
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Silakan login terlebih dahulu.', 'warning')
+        return redirect(url_for('member_login_page'))
+
+    member = Member.query.filter_by(user_id=user_id).first()
+    if not member:
+        flash('Profil member tidak ditemukan. Hubungi admin.', 'danger')
+        return redirect(url_for('member_login_page'))
+
+    return render_template('member/profile.html', member=member)
+
 # --- ROUTE PORTAL PEMILIHAN ROLE ---
 @app.route('/admin/select-role')
 def select_role():
@@ -604,7 +621,7 @@ def owner_dashboard():
 
 # --- HALAMAN MANAJEMEN MEMBER ---
 @app.route('/admin/members')
-@role_required('admin', 'manager')
+@role_required('admin')
 def manage_members():
     # Ambil semua data member, urutkan dari yang paling baru daftar
     # Include all members in the management table so admin can see active/non-active for everyone
@@ -618,6 +635,17 @@ def manage_members():
         members=all_members,
         today_date=today
     )
+
+
+# --- VIEW UNTUK MANAGER: baca-only daftar member ---
+@app.route('/manager/members')
+@role_required('manager')
+def manager_members():
+    # Manager sees a read-only member list (no create/delete)
+    all_members = Member.query.order_by(Member.id.desc()).all()
+    today = datetime.utcnow().date()
+
+    return render_template('admin/manager_members.html', members=all_members, today_date=today)
 
 
 # HAPUS MEMBER
