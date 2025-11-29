@@ -1143,6 +1143,50 @@ def admin_pegawai_delete(id):
     return redirect(url_for('admin_pegawai'))
 
 
+# --- ADMIN: Kelola Akun Member (user.role == 'member') ---
+@app.route('/admin/accounts/members', methods=['GET', 'POST'])
+@role_required('admin')
+def admin_member_accounts():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if not username:
+            flash('Username wajib diisi.', 'danger')
+            return redirect(url_for('admin_member_accounts'))
+
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            flash('Username sudah ada.', 'warning')
+            return redirect(url_for('admin_member_accounts'))
+
+        hashed = generate_password_hash(password or '')
+        new_user = User(username=username, password=hashed, role='member')
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Akun member dibuat.', 'success')
+        return redirect(url_for('admin_member_accounts'))
+
+    members_accounts = User.query.filter_by(role='member').order_by(User.id.desc()).all()
+    return render_template('admin/member_accounts.html', users=members_accounts)
+
+
+@app.route('/admin/accounts/members/delete/<int:id>', methods=['POST'])
+@role_required('admin')
+def admin_member_accounts_delete(id):
+    user = User.query.get_or_404(id)
+    if user.role != 'member':
+        flash('Akun bukan member.', 'warning')
+        return redirect(url_for('admin_member_accounts'))
+
+    # also unlink member profile if exists
+    Member.query.filter_by(user_id=user.id).update({'user_id': None})
+    db.session.delete(user)
+    db.session.commit()
+    flash('Akun member dihapus.', 'success')
+    return redirect(url_for('admin_member_accounts'))
+
+
 @app.route('/admin/member/<int:member_id>')
 @role_required('manager', 'admin', 'pt')
 def admin_member_detail(member_id):
