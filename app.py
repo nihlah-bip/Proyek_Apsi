@@ -965,15 +965,22 @@ def manage_staff():
     # TAMPILKAN TABEL STAFF (READ)
     all_users = User.query.order_by(User.role.asc()).all()
 
-    # Build last-password map for admin and manager users (sensitive)
-    # Managers are allowed to view the most-recent reset plaintext per requirement.
+    # Build last-password info map for admin and manager users (sensitive)
+    # We no longer persist plaintext for new resets. For compatibility we
+    # surface either the legacy plaintext (if present in older logs) or
+    # the timestamp of the last reset event so managers/admins can see when
+    # a reset occurred.
     last_pw = {}
     if session.get('role') in ('admin', 'manager'):
         user_ids = [u.id for u in all_users]
         logs = PasswordResetLog.query.filter(PasswordResetLog.user_id.in_(user_ids)).order_by(PasswordResetLog.created_at.desc()).all()
         for l in logs:
             if l.user_id not in last_pw:
-                last_pw[l.user_id] = l.plain_password
+                # store a small dict with optional legacy plain and timestamp
+                last_pw[l.user_id] = {
+                    'plain': l.plain_password if getattr(l, 'plain_password', None) else None,
+                    'at': l.created_at
+                }
 
     return render_template('admin/manage_staff.html', users=all_users, last_passwords=last_pw)
 

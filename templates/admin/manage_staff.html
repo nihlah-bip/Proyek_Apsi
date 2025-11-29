@@ -52,7 +52,13 @@
                             {% if session.get('role') in ['admin','manager'] %}
                             <td>
                                 {% if last_passwords and u.id in last_passwords %}
-                                    <code class="text-break">{{ last_passwords[u.id] }}</code>
+                                    {% set info = last_passwords[u.id] %}
+                                    {% if info.plain %}
+                                        <code class="text-break text-danger">{{ info.plain }}</code>
+                                        <div><small class="text-muted">(legacy)</small></div>
+                                    {% else %}
+                                        <small class="text-muted">Terakhir: {{ info.at.strftime('%d %b %Y %H:%M') }}</small>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
