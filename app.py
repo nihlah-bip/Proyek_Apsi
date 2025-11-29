@@ -960,7 +960,7 @@ def manage_staff():
         return redirect(url_for('manage_staff'))
 
     # TAMPILKAN TABEL STAFF (READ)
-    all_users = User.query.order_by(User.role.asc()).all()
+    all_users = User.query.filter(User.role != 'member').order_by(User.role.asc()).all()
 
     # Build last-password info map for admin and manager users (sensitive)
     # We no longer persist plaintext for new resets. For compatibility we
@@ -970,14 +970,22 @@ def manage_staff():
     last_pw = {}
     if session.get('role') in ('admin', 'manager'):
         user_ids = [u.id for u in all_users]
+        # Get all logs ordered by time descending
         logs = PasswordResetLog.query.filter(PasswordResetLog.user_id.in_(user_ids)).order_by(PasswordResetLog.created_at.desc()).all()
+        
         for l in logs:
             if l.user_id not in last_pw:
-                # store a small dict with optional legacy plain and timestamp
+                # Store the most recent timestamp
                 last_pw[l.user_id] = {
-                    'plain': l.plain_password if getattr(l, 'plain_password', None) else None,
+                    'plain': None,
                     'at': l.created_at
                 }
+            
+            # Try to find a legacy plaintext password (not empty)
+            # Keep looking through older logs until we find one with plain_password
+            plain_pwd = getattr(l, 'plain_password', None)
+            if plain_pwd and plain_pwd.strip() and last_pw[l.user_id]['plain'] is None:
+                last_pw[l.user_id]['plain'] = plain_pwd
 
     return render_template('admin/manage_staff.html', users=all_users, last_passwords=last_pw)
 
@@ -1010,7 +1018,7 @@ def reset_staff_password(id):
 
         # Log the reset event but DO NOT persist the plaintext password.
         # For audit, we keep a record that a reset happened and who performed it.
-        log = PasswordResetLog(user_id=user.id, plain_password=None, created_by=session.get('user_id'))
+        log = PasswordResetLog(user_id=user.id, plain_password='', created_by=session.get('user_id'))
         db.session.add(log)
         db.session.commit()
 
@@ -1076,6 +1084,58 @@ def delete_staff(id):
     return redirect(url_for('manage_staff'))
 
 
+# --- FITUR EDIT STAFF (UPDATE USERNAME & PASSWORD) ---
+@app.route('/admin/staff/edit/<int:id>', methods=['POST'])
+@role_required('manager')
+def edit_staff(id):
+    
+    user_to_edit = User.query.get_or_404(id)
+    
+    # Mencegah manager mengedit akun manager utama atau dirinya sendiri
+    if user_to_edit.username == 'manager':
+        flash('Tidak bisa mengedit akun manager utama!', 'warning')
+        return redirect(url_for('manage_staff'))
+    
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '').strip()
+    role = request.form.get('role', '').strip()
+    
+    if not username:
+        flash('Username tidak boleh kosong!', 'danger')
+        return redirect(url_for('manage_staff'))
+    
+    # Cek apakah username sudah digunakan oleh user lain
+    existing_user = User.query.filter(User.username == username, User.id != id).first()
+    if existing_user:
+        flash(f'Username "{username}" sudah digunakan oleh user lain!', 'warning')
+        return redirect(url_for('manage_staff'))
+    
+    # Update username
+    old_username = user_to_edit.username
+    user_to_edit.username = username
+    
+    # Update password jika diisi
+    if password:
+        user_to_edit.password = generate_password_hash(password)
+        # Log password change (simpan plain_password agar bisa dilihat admin)
+        pw_log = PasswordResetLog(
+            user_id=user_to_edit.id,
+            plain_password=password,  # Simpan password asli
+            created_by=session.get('user_id'),
+            created_at=datetime.utcnow()
+        )
+        db.session.add(pw_log)
+    
+    # Update role jika diubah
+    if role and role in ['admin', 'pt', 'manager']:
+        user_to_edit.role = role
+    
+    db.session.commit()
+    
+    flash(f'Akun "{old_username}" berhasil diupdate!', 'success')
+    return redirect(url_for('manage_staff'))
+
+
 # --- ADMIN-ONLY: Kelola Pegawai (staff CRUD) ---
 @app.route('/admin/pegawai', methods=['GET', 'POST'])
 @role_required('admin')
@@ -1131,31 +1191,64 @@ def admin_pegawai_delete(id):
 
 
 # --- ADMIN: Kelola Akun Member (user.role == 'member') ---
-@app.route('/admin/accounts/members', methods=['GET', 'POST'])
+@app.route('/admin/accounts/members', methods=['GET'])
 @role_required('admin')
 def admin_member_accounts():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+    members_accounts = User.query.filter_by(role='member').order_by(User.id.desc()).all()
 
-        if not username:
-            flash('Username wajib diisi.', 'danger')
-            return redirect(url_for('admin_member_accounts'))
+    # Build last-password info map for members
+    last_pw = {}
+    user_ids = [u.id for u in members_accounts]
+    if user_ids:
+        logs = PasswordResetLog.query.filter(PasswordResetLog.user_id.in_(user_ids)).order_by(PasswordResetLog.created_at.desc()).all()
+        for l in logs:
+            if l.user_id not in last_pw:
+                last_pw[l.user_id] = {'plain': None, 'at': l.created_at}
+            
+            plain_pwd = getattr(l, 'plain_password', None)
+            if plain_pwd and plain_pwd.strip() and last_pw[l.user_id]['plain'] is None:
+                last_pw[l.user_id]['plain'] = plain_pwd
 
-        existing = User.query.filter_by(username=username).first()
-        if existing:
-            flash('Username sudah ada.', 'warning')
-            return redirect(url_for('admin_member_accounts'))
+    return render_template('admin/member_accounts.html', users=members_accounts, last_passwords=last_pw)
 
-        hashed = generate_password_hash(password or '')
-        new_user = User(username=username, password=hashed, role='member')
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Akun member dibuat.', 'success')
+
+@app.route('/admin/accounts/members/edit/<int:id>', methods=['POST'])
+@role_required('admin')
+def admin_member_accounts_edit(id):
+    user = User.query.get_or_404(id)
+    if user.role != 'member':
+        flash('Hanya akun member yang bisa diedit di sini.', 'warning')
         return redirect(url_for('admin_member_accounts'))
 
-    members_accounts = User.query.filter_by(role='member').order_by(User.id.desc()).all()
-    return render_template('admin/member_accounts.html', users=members_accounts)
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    if not username:
+        flash('Username tidak boleh kosong.', 'danger')
+        return redirect(url_for('admin_member_accounts'))
+
+    # Check duplicate username
+    existing = User.query.filter(User.username == username, User.id != id).first()
+    if existing:
+        flash('Username sudah digunakan.', 'warning')
+        return redirect(url_for('admin_member_accounts'))
+
+    user.username = username
+    
+    if password:
+        user.password = generate_password_hash(password)
+        # Log password change
+        pw_log = PasswordResetLog(
+            user_id=user.id,
+            plain_password=password,
+            created_by=session.get('user_id'),
+            created_at=datetime.utcnow()
+        )
+        db.session.add(pw_log)
+
+    db.session.commit()
+    flash('Akun member berhasil diupdate.', 'success')
+    return redirect(url_for('admin_member_accounts'))
 
 
 @app.route('/admin/accounts/members/delete/<int:id>', methods=['POST'])

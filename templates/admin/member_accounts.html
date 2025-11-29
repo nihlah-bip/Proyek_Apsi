@@ -8,29 +8,6 @@
         <h1 class="h3 mb-0 text-gray-800">Kelola Akun Member</h1>
     </div>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Buat Akun Member Baru</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('admin_member_accounts') }}">
-                <div class="form-row">
-                    <div class="form-group col-md-5">
-                        <label>Username</label>
-                        <input class="form-control" name="username" required />
-                    </div>
-                    <div class="form-group col-md-5">
-                        <label>Password</label>
-                        <input class="form-control" name="password" />
-                    </div>
-                    <div class="form-group col-md-2 align-self-end">
-                        <button class="btn btn-primary">Buat Akun</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div class="card shadow">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Daftar Akun Member</h6>
@@ -42,6 +19,7 @@
                         <tr>
                             <th>No</th>
                             <th>Username</th>
+                            <th>Password (Terakhir)</th>
                             <th width="15%">Aksi</th>
                         </tr>
                     </thead>
@@ -51,11 +29,56 @@
                             <td>{{ loop.index }}</td>
                             <td>{{ u.username }}</td>
                             <td>
+                                {% if last_passwords and u.id in last_passwords %}
+                                    {% set info = last_passwords[u.id] %}
+                                    {% if info.plain %}
+                                        <code class="text-break text-danger">{{ info.plain }}</code>
+                                    {% else %}
+                                        <small class="text-muted">Terakhir: {{ info.at.strftime('%d %b %Y %H:%M') }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editMemberModal{{u.id}}">
+                                    Edit
+                                </button>
                                 <form method="POST" action="{{ url_for('admin_member_accounts_delete', id=u.id) }}" style="display:inline;">
                                     <button class="btn btn-danger btn-sm" onclick="return confirm('Hapus akun member ini?');">Hapus</button>
                                 </form>
                             </td>
                         </tr>
+
+                        <!-- Edit Modal -->
+                        <div class="modal fade" id="editMemberModal{{u.id}}" tabindex="-1" role="dialog" aria-hidden="true">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-primary text-white">
+                                        <h5 class="modal-title">Edit Akun Member</h5>
+                                        <button class="close text-white" type="button" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">×</span>
+                                        </button>
+                                    </div>
+                                    <form action="{{ url_for('admin_member_accounts_edit', id=u.id) }}" method="POST">
+                                        <div class="modal-body">
+                                            <div class="form-group">
+                                                <label>Username</label>
+                                                <input type="text" name="username" class="form-control" value="{{ u.username }}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Password Baru <small class="text-muted">(kosongkan jika tidak ingin mengubah)</small></label>
+                                                <input type="password" name="password" class="form-control" placeholder="Password baru...">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                                            <button class="btn btn-primary" type="submit">Simpan</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                         {% endfor %}
                     </tbody>
                 </table>
