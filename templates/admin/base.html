@@ -88,9 +88,6 @@
                 <div id="collapseManager" class="collapse" aria-labelledby="headingManager" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Menu Pemilik:</h6>
-                        <a class="collapse-item" href="{{ url_for('registrasi') }}">Transaksi Baru</a>
-                        <a class="collapse-item" href="{{ url_for('manage_members') }}">Data Member</a>
-                        <a class="collapse-item" href="{{ url_for('payments') }}">Pembayaran</a>
                         <a class="collapse-item" href="{{ url_for('manage_staff') }}">Kelola Staff</a>
                         <a class="collapse-item" href="{{ url_for('manage_trainers') }}">Kelola Trainer</a>
                     </div>
@@ -106,7 +103,7 @@
             {% endif %}
 
 <!-- ==================== MENU KHUSUS PT ==================== -->
-{% if session.role == 'pt' %}
+{% if session.get('role') == 'pt' %}
 <hr class="sidebar-divider">
 <div class="sidebar-heading">
     Personal Trainer
@@ -155,12 +152,7 @@
     Training & Data
 </div>
 
-<li class="nav-item">
-    <a class="nav-link" href="{{ url_for('training') }}">
-        <i class="fas fa-fw fa-dumbbell"></i>
-        <span>Input Latihan & Progres</span>
-    </a>
-</li>
+{# Removed manager's direct 'Input Latihan & Progres' link — only PTs see training input. #}
 
 <!-- Personal trainers quick list (Hanya untuk Manager) -->
 <li class="nav-item">

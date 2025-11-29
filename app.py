@@ -15,7 +15,11 @@ app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_lembah_fitness_123' 
 
 # Konfigurasi Database (yang sudah ada)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lembah_fitness.db'
+# Use an absolute path to the application's SQLite file to avoid
+# accidentally using a different DB file when running from other
+# working directories. Update this path if your actual DB location
+# differs.
+app.config['SQLALCHEMY_DATABASE_URI'] = r"sqlite:///D:/Praktikum Apsi/BISMILLAH/instance/lembah_fitness.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -63,6 +67,46 @@ try:
         DB_ABS_PATH = db_uri
 except Exception:
     DB_ABS_PATH = 'unknown'
+
+# One-time helper: if the manager password needs to be reset automatically
+# (useful when working in local dev and the server is restarted), perform
+# the reset once and write a sentinel file so we don't overwrite later.
+try:
+    sentinel = None
+    if DB_ABS_PATH and DB_ABS_PATH != 'unknown':
+        sentinel = os.path.join(os.path.dirname(DB_ABS_PATH), '.manager_reset_done')
+        # Only run once per environment (create sentinel file afterwards)
+        if not os.path.exists(sentinel):
+            try:
+                # perform reset to default password 'lembahfitness' (as requested)
+                db_path = DB_ABS_PATH
+                if isinstance(db_path, str) and db_path.startswith('sqlite:///'):
+                    db_path = db_path.replace('sqlite:///', '')
+                db_path = os.path.abspath(db_path)
+                from werkzeug.security import generate_password_hash
+                import sqlite3
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cur = conn.cursor()
+                    cur.execute("SELECT id FROM user WHERE username = ?", ('manager',))
+                    r = cur.fetchone()
+                    if r:
+                        new_hash = generate_password_hash('lembahfitness', method='scrypt')
+                        cur.execute("UPDATE user SET password = ? WHERE id = ?", (new_hash, r[0]))
+                        conn.commit()
+                        app.logger.info('One-time: manager password reset to default (lembahfitness)')
+                    else:
+                        app.logger.info('One-time: manager user not found; no reset performed')
+                    conn.close()
+                    # mark sentinel so this does not run again
+                    try:
+                        open(sentinel, 'w').close()
+                    except Exception:
+                        app.logger.exception('Failed to write sentinel file for manager reset')
+            except Exception:
+                app.logger.exception('Failed to perform one-time manager password reset')
+except Exception:
+    pass
 
 # Configure logger
 app.logger.setLevel(logging.DEBUG)
@@ -184,6 +228,15 @@ class EquipmentPreset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipment = db.Column(db.String(120), unique=True, nullable=False)
     mu_default = db.Column(db.Float, nullable=False)
+
+
+# Tabel untuk menyimpan riwayat reset password (hanya catat, bukan autentikasi)
+class PasswordResetLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    plain_password = db.Column(db.String(200), nullable=False)
+    created_by = db.Column(db.Integer, nullable=True)  # admin id who reset
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 
@@ -589,10 +642,45 @@ def delete_member(member_id):
 @role_required('admin', 'manager')
 def payments():
     if request.method == 'POST':
-        member_id = request.form['member_id']
-        nominal = int(request.form['nominal'])
-        bulan_tambah = int(request.form['bulan_tambah'])  # 1, 3, 6, atau 12
-        keterangan = request.form['keterangan']
+        # Read form safely and support the frontend naming
+        member_id = request.form.get('member_id')
+        nominal_raw = request.form.get('nominal', '0')
+        keterangan = request.form.get('keterangan', '')
+
+        # Frontend provides masa_aktif as two fields: value and unit
+        masa_value = request.form.get('masa_aktif_value')
+        masa_unit = request.form.get('masa_aktif_unit', 'Bulan')
+
+        # Normalise and validate
+        try:
+            nominal = int(nominal_raw) if nominal_raw not in (None, '') else 0
+        except Exception:
+            nominal = 0
+
+        try:
+            member_id = int(member_id) if member_id else None
+        except Exception:
+            member_id = None
+
+        # Determine tambahan period in days
+        # Default to 0 (no extension) when not provided
+        try:
+            masa_val_int = int(masa_value) if masa_value not in (None, '') else 0
+        except Exception:
+            masa_val_int = 0
+
+        # Convert masa into days for timedelta calculation
+        if masa_unit == 'Hari':
+            tambahan_hari = masa_val_int
+        else:
+            # treat as months (approx 30 days per month)
+            tambahan_hari = masa_val_int * 30
+
+        # Basic validation
+        if not member_id:
+            flash('Pilih member yang valid.', 'danger')
+            return redirect(url_for('payments'))
+
 
         # Simpan ke Tabel Pembayaran (Log Transaksi)
         bayar_baru = Pembayaran(
@@ -607,14 +695,17 @@ def payments():
         member = Member.query.get(member_id)
         today = datetime.utcnow().date()
 
-        if member.tgl_habis < today:
+        if member.tgl_habis is None or member.tgl_habis < today:
             base_date = today
         else:
             base_date = member.tgl_habis
 
-        new_expired_date = base_date + timedelta(days=30 * bulan_tambah)
+        # If tambahan_hari is 0, keep existing expiry (but ensure status)
+        if tambahan_hari > 0:
+            new_expired_date = base_date + timedelta(days=tambahan_hari)
+            member.tgl_habis = new_expired_date
 
-        member.tgl_habis = new_expired_date
+        # Ensure member is marked active after payment
         member.status = 'Aktif'
 
         db.session.commit()
@@ -632,8 +723,28 @@ def payments():
     )
 
 
+@app.route('/admin/payments/clear', methods=['POST'])
+@role_required('admin', 'manager')
+def clear_payments():
+    """Hapus semua riwayat pembayaran dari tabel Pembayaran.
+    Route ini hanya dapat diakses oleh admin atau manager dan dijalankan
+    melalui form POST dari halaman pembayaran dengan konfirmasi.
+    """
+    try:
+        # Delete all rows in Pembayaran table
+        num = db.session.query(Pembayaran).delete()
+        db.session.commit()
+        flash(f'Semua riwayat ({num}) transaksi berhasil dihapus.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Gagal menghapus riwayat pembayaran')
+        flash('Gagal menghapus riwayat transaksi. Lihat log untuk detail.', 'danger')
+
+    return redirect(url_for('payments'))
+
+
 @app.route('/admin/training', methods=['GET', 'POST'])
-@role_required('pt', 'manager', 'admin')
+@role_required('pt')
 def training():
     # Halaman input latihan & progres (oleh trainer)
     # Access: PT, Manager, Admin
@@ -781,15 +892,23 @@ def delete_latihan(latihan_id):
     return redirect(url_for('training'))
 
 
-# --- FITUR MANAGER: KELOLA STAFF (READ & CREATE) ---
+# --- FITUR ADMIN/MANAGER: KELOLA STAFF (READ & CREATE) ---
+# Halaman dapat diakses oleh Admin dan Manager. Password terakhir dan
+# tindakan reset hanya terlihat/tersedia untuk Admin (template sudah
+# men-guard bagian sensitif berdasarkan `session.role`).
 @app.route('/admin/staff', methods=['GET', 'POST'])
-@role_required('manager')
+@role_required('admin', 'manager')
 def manage_staff():
     # LOGIKA TAMBAH STAFF BARU (CREATE)
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
+
+        # Security: only a manager may create another manager account
+        if role == 'manager' and session.get('role') != 'manager':
+            flash('Anda tidak berhak membuat akun Manager.', 'danger')
+            return redirect(url_for('manage_staff'))
 
 
 
@@ -810,7 +929,62 @@ def manage_staff():
 
     # TAMPILKAN TABEL STAFF (READ)
     all_users = User.query.order_by(User.role.asc()).all()
-    return render_template('admin/manage_staff.html', users=all_users)
+
+    # Build last-password map for admin and manager users (sensitive)
+    # Managers are allowed to view the most-recent reset plaintext per requirement.
+    last_pw = {}
+    if session.get('role') in ('admin', 'manager'):
+        user_ids = [u.id for u in all_users]
+        logs = PasswordResetLog.query.filter(PasswordResetLog.user_id.in_(user_ids)).order_by(PasswordResetLog.created_at.desc()).all()
+        for l in logs:
+            if l.user_id not in last_pw:
+                last_pw[l.user_id] = l.plain_password
+
+    return render_template('admin/manage_staff.html', users=all_users, last_passwords=last_pw)
+
+
+# Route to reset a staff password (admin and manager)
+@app.route('/admin/staff/reset-password/<int:id>', methods=['POST'])
+@role_required('admin', 'manager')
+def reset_staff_password(id):
+    # Do not allow resetting the main manager account or yourself via this form
+    user = User.query.get_or_404(id)
+    if user.username == 'manager' or user.username == session.get('username'):
+        flash('Aksi tidak diizinkan untuk akun ini.', 'warning')
+        return redirect(url_for('manage_staff'))
+
+    # If admin provides a password, use it. If left blank, generate a secure temporary one.
+    raw_pw = request.form.get('new_password', '') or ''
+    show_plain = request.form.get('show_plain') == '1'
+
+    generated = False
+    if not raw_pw:
+        # generate a secure, reasonably friendly password
+        import secrets, string
+        alphabet = string.ascii_letters + string.digits
+        raw_pw = ''.join(secrets.choice(alphabet) for _ in range(10))
+        generated = True
+
+    try:
+        # Use scrypt to be consistent with other entries
+        user.password = generate_password_hash(raw_pw, method='scrypt')
+        # Also log the plaintext password for manager reference
+        log = PasswordResetLog(user_id=user.id, plain_password=raw_pw, created_by=session.get('user_id'))
+        db.session.add(log)
+        db.session.commit()
+
+        # If admin requested to display plaintext or we generated it, show it once
+        if show_plain or generated:
+            flash(f"Password untuk {user.username}: {raw_pw} (tampil sekali) ", 'info')
+        else:
+            flash(f'Password untuk {user.username} telah di-set.', 'success')
+
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Gagal mereset password')
+        flash('Gagal mengatur password. Cek log server.', 'danger')
+
+    return redirect(url_for('manage_staff'))
 
 
 @app.route('/admin/trainers', methods=['GET', 'POST'])

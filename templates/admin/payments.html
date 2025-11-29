@@ -63,8 +63,13 @@
 
         <div class="col-lg-8">
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold text-primary">Riwayat Transaksi Terakhir</h6>
+                    <form action="{{ url_for('clear_payments') }}" method="POST" onsubmit="return confirm('Anda yakin ingin menghapus SEMUA riwayat transaksi? Tindakan ini tidak dapat dibatalkan.');">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash-alt"></i> Hapus Semua
+                        </button>
+                    </form>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
