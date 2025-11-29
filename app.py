@@ -14,12 +14,9 @@ app = Flask(__name__)
 # ==========================================
 app.secret_key = 'kunci_rahasia_lembah_fitness_123' 
 
-# Konfigurasi Database (yang sudah ada)
-# Use an absolute path to the application's SQLite file to avoid
-# accidentally using a different DB file when running from other
-# working directories. Update this path if your actual DB location
-# differs.
-app.config['SQLALCHEMY_DATABASE_URI'] = r"sqlite:///D:/Praktikum Apsi/BISMILLAH/instance/lembah_fitness.db"
+# Konfigurasi Database
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "instance", "lembah_fitness.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -987,31 +984,10 @@ def reset_staff_password(id):
     return redirect(url_for('manage_staff'))
 
 
-@app.route('/admin/trainers', methods=['GET', 'POST'])
+@app.route('/admin/trainers')
 @role_required('manager')
 def manage_trainers():
-
-    if request.method == 'POST':
-        username = request.form.get('username')
-        # Do not require password on creation — admin will set or instruct PT to create password later
-        if not username:
-            flash('Username wajib diisi.', 'danger')
-            return redirect(url_for('manage_trainers'))
-
-        existing = User.query.filter_by(username=username).first()
-        if existing:
-            flash('Username sudah ada.', 'warning')
-            return redirect(url_for('manage_trainers'))
-
-        # store a hashed empty password as placeholder
-        hashed = generate_password_hash('')
-        new_pt = User(username=username, password=hashed, role='pt')
-        db.session.add(new_pt)
-        db.session.commit()
-        flash(f'Personal Trainer {username} dibuat tanpa password. Silakan atur password nanti.', 'success')
-        return redirect(url_for('manage_trainers'))
-
-    # GET -> list trainers
+    """List all personal trainers"""
     trainers = User.query.filter_by(role='pt').all()
     # attach clients count
     trainer_rows = []
