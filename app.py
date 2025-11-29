@@ -1084,6 +1084,60 @@ def delete_staff(id):
     return redirect(url_for('manage_staff'))
 
 
+# --- ADMIN-ONLY: Kelola Pegawai (staff CRUD) ---
+@app.route('/admin/pegawai', methods=['GET', 'POST'])
+@role_required('admin')
+def admin_pegawai():
+    """Admin-only page to list and create staff accounts (admin/pt/manager).
+    This separates staff management from the manager-facing view.
+    """
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+
+        if not username or not role:
+            flash('Username dan role wajib diisi.', 'danger')
+            return redirect(url_for('admin_pegawai'))
+
+        # disallow creating a manager unless a manager performs the action
+        if role == 'manager' and session.get('role') != 'manager':
+            flash('Pembuatan akun Manager dibatasi.', 'danger')
+            return redirect(url_for('admin_pegawai'))
+
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            flash('Username sudah ada.', 'warning')
+            return redirect(url_for('admin_pegawai'))
+
+        hashed = generate_password_hash(password or '')
+        new_user = User(username=username, password=hashed, role=role)
+        db.session.add(new_user)
+        db.session.commit()
+        flash(f'Akun {username} dibuat.', 'success')
+        return redirect(url_for('admin_pegawai'))
+
+    # GET -> list staff (exclude members)
+    staff_users = User.query.filter(User.role != 'member').order_by(User.role.asc(), User.username.asc()).all()
+    return render_template('admin/pegawai.html', users=staff_users)
+
+
+@app.route('/admin/pegawai/delete/<int:id>', methods=['POST'])
+@role_required('admin')
+def admin_pegawai_delete(id):
+    user = User.query.get_or_404(id)
+
+    # prevent deleting main manager account or self
+    if user.username == 'manager' or user.username == session.get('username'):
+        flash('Aksi tidak diizinkan pada akun ini.', 'warning')
+        return redirect(url_for('admin_pegawai'))
+
+    db.session.delete(user)
+    db.session.commit()
+    flash('Akun pegawai dihapus.', 'success')
+    return redirect(url_for('admin_pegawai'))
+
+
 @app.route('/admin/member/<int:member_id>')
 @role_required('manager', 'admin', 'pt')
 def admin_member_detail(member_id):

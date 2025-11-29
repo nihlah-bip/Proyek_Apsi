@@ -1,0 +1,80 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Kelola Pegawai{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Kelola Pegawai</h1>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Tambah Pegawai Baru</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_pegawai') }}">
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label>Username</label>
+                        <input class="form-control" name="username" required />
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Password (boleh kosong)</label>
+                        <input class="form-control" name="password" />
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label>Role</label>
+                        <select class="form-control" name="role">
+                            <option value="admin">Admin</option>
+                            <option value="pt">Personal Trainer</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-1 align-self-end">
+                        <button class="btn btn-primary">Buat</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Pegawai</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" width="100%">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th width="15%">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ u.username }}</td>
+                            <td>{{ u.role }}</td>
+                            <td>
+                                {% if u.username != 'manager' and u.username != session.username %}
+                                <form method="POST" action="{{ url_for('admin_pegawai_delete', id=u.id) }}" style="display:inline;">
+                                    <button class="btn btn-danger btn-sm" onclick="return confirm('Hapus akun ini?');">Hapus</button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">Dilindungi</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
