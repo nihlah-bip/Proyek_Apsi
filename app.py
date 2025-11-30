@@ -295,9 +295,7 @@ def blog_details():
     return render_template('public/blog_details.html')
 
 
-@app.route('/contact')
-def contact():
-    return render_template('public/contact.html')
+# Contact page removed — no public contact page in this deployment.
 
 # @app.route('/login')
 # def login():
