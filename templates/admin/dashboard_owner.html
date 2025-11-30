@@ -18,11 +18,11 @@
 
         <!-- Total Pemasukan Bulan Ini -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
+            <div class="card border-left-maroon shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            <div class="text-xs font-weight-bold text-maroon text-uppercase mb-1">
                                 Pemasukan Bulan Ini</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 Rp {{ "{:,}".format(month_income).replace(',', '.') }}
@@ -38,11 +38,11 @@
 
         <!-- Total Pemasukan Tahun Ini -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card border-left-dark shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
                                 Total Pemasukan {{ year }}</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 Rp {{ "{:,}".format(year_income).replace(',', '.') }}
@@ -58,11 +58,11 @@
 
         <!-- Total Member Aktif -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
+            <div class="card border-left-maroon shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            <div class="text-xs font-weight-bold text-maroon text-uppercase mb-1">
                                 Member Aktif</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_members }}</div>
                         </div>
@@ -76,11 +76,11 @@
 
         <!-- Total Personal Trainer -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card border-left-dark shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
                                 Personal Trainer</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_trainers }}</div>
                         </div>
@@ -100,7 +100,7 @@
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Grafik Pemasukan Tahun {{ year }}</h6>
+                    <h6 class="m-0 font-weight-bold text-maroon">Grafik Pemasukan Tahun {{ year }}</h6>
                 </div>
                 <div class="card-body">
                     <div class="chart-area">
@@ -114,7 +114,7 @@
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Program Member</h6>
+                    <h6 class="m-0 font-weight-bold text-maroon">Program Member</h6>
                 </div>
                 <div class="card-body">
                     <div class="chart-pie pt-4 pb-2">
@@ -122,13 +122,13 @@
                     </div>
                     <div class="mt-4 text-center small">
                         <span class="mr-2">
-                            <i class="fas fa-circle text-primary"></i> Insidental
+                            <i class="fas fa-circle text-maroon"></i> Insidental
                         </span>
                         <span class="mr-2">
-                            <i class="fas fa-circle text-success"></i> Reguler
+                            <i class="fas fa-circle text-dark"></i> Reguler
                         </span>
                         <span class="mr-2">
-                            <i class="fas fa-circle text-info"></i> Personal Trainer
+                            <i class="fas fa-circle text-secondary"></i> Personal Trainer
                         </span>
                     </div>
                 </div>
@@ -141,7 +141,7 @@
         <div class="col-xl-12">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Pendaftaran Member per Program Tahun {{ year }}</h6>
+                    <h6 class="m-0 font-weight-bold text-maroon">Pendaftaran Member per Program Tahun {{ year }}</h6>
                 </div>
                 <div class="card-body">
                     <div class="chart-bar">
@@ -172,14 +172,14 @@ var incomeChart = new Chart(ctx1, {
     datasets: [{
       label: "Pemasukan (Rp)",
       lineTension: 0.3,
-      backgroundColor: "rgba(78, 115, 223, 0.05)",
-      borderColor: "rgba(78, 115, 223, 1)",
+      backgroundColor: "rgba(128, 0, 0, 0.05)",
+      borderColor: "rgba(128, 0, 0, 1)",
       pointRadius: 3,
-      pointBackgroundColor: "rgba(78, 115, 223, 1)",
-      pointBorderColor: "rgba(78, 115, 223, 1)",
+      pointBackgroundColor: "rgba(128, 0, 0, 1)",
+      pointBorderColor: "rgba(128, 0, 0, 1)",
       pointHoverRadius: 3,
-      pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
-      pointHoverBorderColor: "rgba(78, 115, 223, 1)",
+      pointHoverBackgroundColor: "rgba(128, 0, 0, 1)",
+      pointHoverBorderColor: "rgba(128, 0, 0, 1)",
       pointHitRadius: 10,
       pointBorderWidth: 2,
       data: incomeData,
@@ -261,23 +261,23 @@ var registrationChart = new Chart(ctx2, {
     datasets: [
       {
         label: "Insidental",
-        backgroundColor: "#4e73df",
-        hoverBackgroundColor: "#2e59d9",
-        borderColor: "#4e73df",
+        backgroundColor: "#800000",
+        hoverBackgroundColor: "#600000",
+        borderColor: "#800000",
         data: registrationsData['Insidental'],
       },
       {
         label: "Reguler",
-        backgroundColor: "#1cc88a",
-        hoverBackgroundColor: "#17a673",
-        borderColor: "#1cc88a",
+        backgroundColor: "#212529",
+        hoverBackgroundColor: "#1a1e21",
+        borderColor: "#212529",
         data: registrationsData['Reguler'],
       },
       {
         label: "Personal Trainer",
-        backgroundColor: "#36b9cc",
-        hoverBackgroundColor: "#2c9faf",
-        borderColor: "#36b9cc",
+        backgroundColor: "#858796",
+        hoverBackgroundColor: "#6e707e",
+        borderColor: "#858796",
         data: registrationsData['Personal Trainer'],
       }
     ],
@@ -347,8 +347,8 @@ var programChart = new Chart(ctx3, {
     labels: ["Insidental", "Reguler", "Personal Trainer"],
     datasets: [{
       data: [programCounts['Insidental'], programCounts['Reguler'], programCounts['Personal Trainer']],
-      backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc'],
-      hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf'],
+      backgroundColor: ['#800000', '#212529', '#858796'],
+      hoverBackgroundColor: ['#600000', '#1a1e21', '#6e707e'],
       hoverBorderColor: "rgba(234, 236, 244, 1)",
     }],
   },

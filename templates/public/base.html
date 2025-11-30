@@ -63,8 +63,6 @@
                     <li><a href="{{ url_for('courses') }}">Courses</a></li>
                     <li><a href="{{ url_for('pricing') }}">Pricing</a></li>
                     <li><a href="{{ url_for('gallery') }}">Gallery</a></li>
-                    <li><a href="{{ url_for('select_role') }}" class="btn" style="margin-right: 10px;">Portal Staff</a></li>
-                    <li><a href="{{ url_for('member_login_page') }}" class="btn">Login Member</a></li>
 
                   </ul>
                 </nav>
@@ -158,9 +156,51 @@
       </div>
       <!-- Footer End-->
     </footer>
-    <!-- Scroll Up -->
-    <div id="back-top">
-      <a title="Go to Top" href="#"> <i class="fas fa-level-up-alt"></i></a>
+
+    <!-- Login Member Button -->
+    <style>
+        #login-member-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 999;
+        }
+
+        .btn-member-floating {
+            background: linear-gradient(135deg, #800000 0%, #212529 100%);
+            color: white !important;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-family: "Barlow", sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+            font-style: normal;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .btn-member-floating:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(128, 0, 0, 0.5);
+            background: linear-gradient(135deg, #a00000 0%, #2c3036 100%);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .btn-member-floating i {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+    </style>
+    <div id="login-member-btn">
+      <a href="{{ url_for('member_login_page') }}" class="btn-member-floating">
+        <i class="fas fa-user-circle"></i> Login Member
+      </a>
     </div>
 
     <!-- JS here -->

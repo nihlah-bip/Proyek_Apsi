@@ -91,7 +91,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <!-- Riwayat Analisis -->
 <div class="row mt-3">
@@ -150,7 +149,9 @@
                         </tbody>
                     </table>
                 </div>
-                <canvas id="queueChart" height="120"></canvas>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="queueChart"></canvas>
+                </div>
                 {% else %}
                 <p class="text-muted">Belum ada riwayat analisis.</p>
                 {% endif %}
@@ -198,14 +199,14 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'ρ (utilization)', data: rhos, borderColor: '#4e73df', fill: false },
-                        { label: 'Lq (queue length)', data: Lqs, borderColor: '#1cc88a', fill: false }
+                        { label: 'ρ (utilization)', data: rhos, borderColor: '#800000', fill: false },
+                        { label: 'Lq (queue length)', data: Lqs, borderColor: '#212529', fill: false }
                     ]
                 },
                 options: { maintainAspectRatio: false }
             });
         }
-        
+    }
     {% endif %}
 </script>
 {% endblock %}

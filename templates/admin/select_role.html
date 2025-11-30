@@ -12,6 +12,9 @@
     <link href="{{ url_for('static', filename='admin_assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
 
     <style>
+        body {
+            background-color: #212529; /* Dark Charcoal */
+        }
         .role-card {
             cursor: pointer;
             transition: all 0.3s ease;
@@ -20,19 +23,20 @@
         .role-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important;
-            border-color: #4e73df;
+            border-color: #800000; /* Maroon */
         }
         .role-icon {
             font-size: 4rem;
             margin-bottom: 1rem;
+            color: #800000; /* Maroon */
         }
-        .role-card-admin .role-icon { color: #4e73df; }
+        /* .role-card-admin .role-icon { color: #4e73df; }
         .role-card-pt .role-icon { color: #1cc88a; }
-        .role-card-owner .role-icon { color: #f6c23e; }
+        .role-card-owner .role-icon { color: #f6c23e; } */
     </style>
 </head>
 
-<body class="bg-gradient-primary">
+<body>
 
     <div class="container">
         <div class="row justify-content-center" style="min-height: 100vh; align-items: center;">

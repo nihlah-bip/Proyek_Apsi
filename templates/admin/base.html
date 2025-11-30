@@ -15,6 +15,73 @@
 
     <link href="{{ url_for('static', filename='admin_assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
 
+    <style>
+        /* Custom Theme: Dark Charcoal & Maroon */
+        
+        /* Backgrounds */
+        .bg-dark-charcoal {
+            background-color: #212529 !important;
+            background-image: none !important;
+        }
+        
+        /* Override Bootstrap Primary to Maroon */
+        .text-primary {
+            color: #800000 !important;
+        }
+        
+        .bg-primary {
+            background-color: #800000 !important;
+        }
+        
+        .bg-gradient-primary {
+            background-color: #212529 !important; /* Sidebar fallback */
+            background-image: none !important;
+        }
+        
+        .border-left-primary {
+            border-left: .25rem solid #800000 !important;
+        }
+        
+        /* Buttons */
+        .btn-primary {
+            background-color: #800000 !important;
+            border-color: #800000 !important;
+        }
+        
+        .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+            background-color: #600000 !important;
+            border-color: #600000 !important;
+        }
+        
+        /* Sidebar */
+        .sidebar-dark .nav-item.active .nav-link {
+            background-color: #800000 !important;
+        }
+        
+        /* Pagination */
+        .page-item.active .page-link {
+            background-color: #800000 !important;
+            border-color: #800000 !important;
+        }
+
+        /* Custom Utilities */
+        .text-maroon {
+            color: #800000 !important;
+        }
+        
+        .bg-maroon {
+            background-color: #800000 !important;
+        }
+        
+        .border-left-maroon {
+            border-left: .25rem solid #800000 !important;
+        }
+
+        .border-left-dark {
+            border-left: .25rem solid #212529 !important;
+        }
+    </style>
+
     {% block head %}{% endblock %}
 
 </head>
@@ -23,7 +90,7 @@
 
     <div id="wrapper">
 
-        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+        <ul class="navbar-nav bg-dark-charcoal sidebar sidebar-dark accordion" id="accordionSidebar">
 
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% if session.role == 'pt' %}{{ url_for('pt_dashboard') }}{% else %}{{ url_for('admin_dashboard') }}{% endif %}">
                 <div class="sidebar-brand-icon rotate-n-15">
@@ -72,12 +139,6 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('admin_pegawai') }}">
-                    <i class="fas fa-fw fa-user-cog"></i>
-                    <span>Kelola Pegawai</span>
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('admin_member_accounts') }}">
                     <i class="fas fa-fw fa-user"></i>
                     <span>Kelola Akun Member</span>
@@ -92,18 +153,10 @@
             </div>
             
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseManager"
-                    aria-expanded="true" aria-controls="collapseManager">
-                    <i class="fas fa-fw fa-chart-line"></i>
-                    <span>Manajemen Bisnis</span>
+                <a class="nav-link" href="{{ url_for('manage_staff') }}">
+                    <i class="fas fa-fw fa-user-cog"></i>
+                    <span>Kelola Staff</span>
                 </a>
-                <div id="collapseManager" class="collapse" aria-labelledby="headingManager" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Menu Pemilik:</h6>
-                        <a class="collapse-item" href="{{ url_for('manage_staff') }}">Kelola Staff</a>
-                        <a class="collapse-item" href="{{ url_for('manage_trainers') }}">Kelola Trainer</a>
-                    </div>
-                </div>
             </li>
             
             <li class="nav-item">
@@ -166,6 +219,25 @@
 
 {# Removed manager's direct 'Input Latihan & Progres' link — only PTs see training input. #}
 
+<!-- Members quick list (Hanya untuk Manager) -->
+<li class="nav-item">
+    <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMembers"
+        aria-expanded="true" aria-controls="collapseMembers">
+        <i class="fas fa-fw fa-users"></i>
+        <span>Members</span>
+    </a>
+    <div id="collapseMembers" class="collapse" aria-labelledby="headingMembers" data-parent="#accordionSidebar">
+        <div class="bg-white py-2 collapse-inner rounded">
+            <h6 class="collapse-header">Daftar Member:</h6>
+            {% for m in sidebar_members %}
+                <a class="collapse-item" href="{{ url_for('admin_member_detail', member_id=m.id) }}">{{ m.nama_lengkap }}</a>
+            {% else %}
+                <span class="collapse-item small text-muted">Belum ada member.</span>
+            {% endfor %}
+        </div>
+    </div>
+</li>
+
 <li class="nav-item">
     <a class="nav-link" href="{{ url_for('manager_members') }}">
         <i class="fas fa-fw fa-users"></i>
@@ -190,25 +262,6 @@
             {% endfor %}
             <div class="dropdown-divider"></div>
             <a class="collapse-item small" href="{{ url_for('manage_trainers') }}">Kelola Trainer</a>
-        </div>
-    </div>
-</li>
-
-<!-- Members quick list (Hanya untuk Manager) -->
-<li class="nav-item">
-    <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMembers"
-        aria-expanded="true" aria-controls="collapseMembers">
-        <i class="fas fa-fw fa-users"></i>
-        <span>Members</span>
-    </a>
-    <div id="collapseMembers" class="collapse" aria-labelledby="headingMembers" data-parent="#accordionSidebar">
-        <div class="bg-white py-2 collapse-inner rounded">
-            <h6 class="collapse-header">Daftar Member:</h6>
-            {% for m in sidebar_members %}
-                <a class="collapse-item" href="{{ url_for('admin_member_detail', member_id=m.id) }}">{{ m.nama_lengkap }}</a>
-            {% else %}
-                <span class="collapse-item small text-muted">Belum ada member.</span>
-            {% endfor %}
         </div>
     </div>
 </li>
@@ -242,7 +295,7 @@
 
             <div id="content">
 
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                <nav class="navbar navbar-expand navbar-dark bg-dark-charcoal topbar mb-4 static-top shadow">
 
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                         <i class="fa fa-bars"></i>
@@ -258,7 +311,7 @@
                             </a>
                             <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="messagesDropdown">
-                                <h6 class="dropdown-header">
+                                <h6 class="dropdown-header bg-maroon border-0">
                                     Message Center
                                 </h6>
                                 <a class="dropdown-item d-flex align-items-center" href="#">
@@ -306,14 +359,14 @@
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">
+                                <span class="mr-2 d-none d-lg-inline text-white small">
                                     {{ session.username|title }}
                                     {% if session.role == 'admin' %}
-                                        <span class="badge badge-primary">Admin</span>
+                                        <span class="badge badge-light text-dark">Admin</span>
                                     {% elif session.role == 'pt' %}
-                                        <span class="badge badge-success">PT</span>
+                                        <span class="badge badge-light text-dark">PT</span>
                                     {% elif session.role == 'manager' %}
-                                        <span class="badge badge-warning">Manager</span>
+                                        <span class="badge badge-light text-dark">Manager</span>
                                     {% endif %}
                                 </span>
                                 <img class="img-profile rounded-circle"
@@ -321,7 +374,7 @@
                             </a>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="userDropdown">
-                                <a class="dropdown-item" href="#">
+                                <a class="dropdown-item" href="{{ url_for('admin_profile') }}">
                                     <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                     Profile
                                 </a>

@@ -140,6 +140,11 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'manager', 'admin', 'pt'
+    
+    # Data Tambahan untuk Profil
+    nama_lengkap = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(100), nullable=True)
+    no_telepon = db.Column(db.String(20), nullable=True)
 
 
 # Tabel Member (Data Pelanggan Lengkap)
@@ -354,7 +359,7 @@ def member_profile():
     return render_template('member/profile.html', member=member)
 
 # --- ROUTE PORTAL PEMILIHAN ROLE ---
-@app.route('/admin/select-role')
+@app.route('/portal')
 def select_role():
     return render_template('admin/select_role.html')
 
@@ -927,9 +932,7 @@ def delete_latihan(latihan_id):
 @app.route('/admin/staff', methods=['GET', 'POST'])
 @role_required('admin', 'manager')
 def manage_staff():
-    # Jika admin mengakses route lama, arahkan ke halaman baru `/admin/pegawai`
-    if session.get('role') == 'admin':
-        return redirect(url_for('admin_pegawai'))
+    # Admins may also view this page; do not redirect to the removed admin-only page.
 
     # LOGIKA TAMBAH STAFF BARU (CREATE)
     if request.method == 'POST':
@@ -1136,58 +1139,9 @@ def edit_staff(id):
     return redirect(url_for('manage_staff'))
 
 
-# --- ADMIN-ONLY: Kelola Pegawai (staff CRUD) ---
-@app.route('/admin/pegawai', methods=['GET', 'POST'])
-@role_required('admin')
-def admin_pegawai():
-    """Admin-only page to list and create staff accounts (admin/pt/manager).
-    This separates staff management from the manager-facing view.
-    """
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        role = request.form.get('role')
-
-        if not username or not role:
-            flash('Username dan role wajib diisi.', 'danger')
-            return redirect(url_for('admin_pegawai'))
-
-        # disallow creating a manager unless a manager performs the action
-        if role == 'manager' and session.get('role') != 'manager':
-            flash('Pembuatan akun Manager dibatasi.', 'danger')
-            return redirect(url_for('admin_pegawai'))
-
-        existing = User.query.filter_by(username=username).first()
-        if existing:
-            flash('Username sudah ada.', 'warning')
-            return redirect(url_for('admin_pegawai'))
-
-        hashed = generate_password_hash(password or '')
-        new_user = User(username=username, password=hashed, role=role)
-        db.session.add(new_user)
-        db.session.commit()
-        flash(f'Akun {username} dibuat.', 'success')
-        return redirect(url_for('admin_pegawai'))
-
-    # GET -> list staff (exclude members)
-    staff_users = User.query.filter(User.role != 'member').order_by(User.role.asc(), User.username.asc()).all()
-    return render_template('admin/pegawai.html', users=staff_users)
-
-
-@app.route('/admin/pegawai/delete/<int:id>', methods=['POST'])
-@role_required('admin')
-def admin_pegawai_delete(id):
-    user = User.query.get_or_404(id)
-
-    # prevent deleting main manager account or self
-    if user.username == 'manager' or user.username == session.get('username'):
-        flash('Aksi tidak diizinkan pada akun ini.', 'warning')
-        return redirect(url_for('admin_pegawai'))
-
-    db.session.delete(user)
-    db.session.commit()
-    flash('Akun pegawai dihapus.', 'success')
-    return redirect(url_for('admin_pegawai'))
+# Admin-only 'Kelola Pegawai' page removed: manager-facing `manage_staff`
+# remains available for manager users; if you want an admin-only
+# equivalent in the future, re-add a dedicated route and template.
 
 
 # --- ADMIN: Kelola Akun Member (user.role == 'member') ---
@@ -1816,6 +1770,80 @@ def member_dashboard(id):
     
     # Arahkan ke folder templates/member/dashboard.html
     return render_template('member/dashboard.html', member=member, logs=logs, today=today)
+
+
+# ==========================================
+# ROUTE PROFILE (ADMIN, MANAGER, PT)
+# ==========================================
+@app.route('/admin/profile')
+@login_required
+def admin_profile():
+    user_id = session.get('user_id')
+    user = User.query.get_or_404(user_id)
+    return render_template('admin/profile.html', user=user)
+
+
+@app.route('/admin/profile/update_details', methods=['POST'])
+@login_required
+def update_profile_details():
+    user_id = session.get('user_id')
+    user = User.query.get_or_404(user_id)
+    
+    nama_lengkap = request.form.get('nama_lengkap')
+    email = request.form.get('email')
+    no_telepon = request.form.get('no_telepon')
+    
+    try:
+        user.nama_lengkap = nama_lengkap
+        user.email = email
+        user.no_telepon = no_telepon
+        
+        db.session.commit()
+        flash('Informasi profil berhasil diperbarui.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('Gagal memperbarui profil.', 'danger')
+        
+    return redirect(url_for('admin_profile'))
+
+
+@app.route('/admin/profile/update_password', methods=['POST'])
+@login_required
+def update_profile_password():
+    user_id = session.get('user_id')
+    user = User.query.get_or_404(user_id)
+    
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
+    if not new_password or not confirm_password:
+        flash('Password tidak boleh kosong.', 'danger')
+        return redirect(url_for('admin_profile'))
+        
+    if new_password != confirm_password:
+        flash('Konfirmasi password tidak cocok.', 'danger')
+        return redirect(url_for('admin_profile'))
+        
+    # Update password
+    user.password = generate_password_hash(new_password)
+    
+    # Log password change
+    try:
+        pw_log = PasswordResetLog(
+            user_id=user.id,
+            plain_password=new_password, # Simpan plain agar user ingat jika lupa (opsional, sesuai kebijakan sebelumnya)
+            created_by=user.id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(pw_log)
+        db.session.commit()
+        flash('Password berhasil diperbarui.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('Gagal memperbarui password.', 'danger')
+        
+    return redirect(url_for('admin_profile'))
+
 
 # -----------------------------------------------------------
 # PASTIKAN KODE INI TETAP PALING BAWAH

@@ -18,15 +18,15 @@
 
     <div class="row">
         <div class="col-lg-4 mb-4">
-            <div class="card shadow h-100 border-left-primary">
+            <div class="card shadow h-100 border-left-maroon">
                 <div class="card-body text-center">
                     <img src="{{ url_for('static', filename='admin_assets/img/undraw_profile.svg') }}" width="100" class="rounded-circle mb-3 bg-gray-200 p-2">
                     <h4 class="text-dark font-weight-bold">{{ member.nama_lengkap }}</h4>
-                    <span class="badge badge-success mb-3">{{ member.program }}</span>
+                    <span class="badge badge-dark mb-3" style="background-color: #212529;">{{ member.program }}</span>
 
                     <div class="text-left mt-3 bg-gray-100 p-3 rounded">
                         <small class="text-muted">Masa Aktif:</small>
-                        <h5 class="font-weight-bold text-success">{{ member.tgl_habis.strftime('%d %B %Y') }}</h5>
+                        <h5 class="font-weight-bold text-maroon">{{ member.tgl_habis.strftime('%d %B %Y') }}</h5>
                         <hr>
                         <small class="text-muted">Target / Goals:</small><br>
                         <strong>{{ member.goals or '-' }}</strong>
@@ -36,9 +36,9 @@
         </div>
 
         <div class="col-lg-8">
-            <div class="card shadow mb-4 border-left-warning">
+            <div class="card shadow mb-4 border-left-dark">
                 <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-calendar-alt"></i> Jadwal Latihan Terbaru</h6>
+                    <h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-calendar-alt"></i> Jadwal Latihan Terbaru</h6>
                 </div>
                 <div class="card-body">
                     {% if logs and logs|length > 0 %}
@@ -50,9 +50,9 @@
                 </div>
             </div>
 
-            <div class="card shadow mb-4">
+            <div class="card shadow mb-4 border-left-maroon">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-line"></i> Riwayat Berat Badan & BMI</h6>
+                    <h6 class="m-0 font-weight-bold text-maroon"><i class="fas fa-chart-line"></i> Riwayat Berat Badan & BMI</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
