@@ -1644,7 +1644,7 @@ def queue_analysis():
 
 
 @app.route('/admin/queue/export')
-@role_required('manager')
+@role_required('manager','admin')
 def export_queue_csv():
 
     import io, csv
@@ -1675,7 +1675,7 @@ def export_queue_csv():
 
 
 @app.route('/admin/export/income')
-@role_required('manager')
+@role_required('manager','admin')
 def export_income_csv():
     """Export pembayaran (pemasukan) sebagai CSV.
     Optional query param `period` can be 'month' or 'year'. Default is 'year'.
@@ -1725,7 +1725,7 @@ def export_income_csv():
 
 
 @app.route('/admin/export/members')
-@role_required('manager')
+@role_required('manager','admin')
 def export_members_csv():
     """Export daftar member sebagai CSV."""
     import io, csv
