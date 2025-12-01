@@ -8,9 +8,18 @@
     <!-- Judul + tombol -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
-        <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
-            <i class="fas fa-download fa-sm text-white-50"></i> Generate Report
-        </a>
+        <div class="d-none d-sm-inline-block btn-group">
+            <button type="button" class="btn btn-sm btn-primary dropdown-toggle shadow-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-download fa-sm text-white-50"></i> Generate Report
+            </button>
+            <div class="dropdown-menu dropdown-menu-right">
+                <a class="dropdown-item" href="{{ url_for('export_queue_csv') }}">Analisis Antrian (CSV)</a>
+                <a class="dropdown-item" href="{{ url_for('export_income_csv', period='month') }}">Pemasukan - Bulan Ini (CSV)</a>
+                <a class="dropdown-item" href="{{ url_for('export_income_csv', period='year') }}">Pemasukan - Tahun Ini (CSV)</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="{{ url_for('export_members_csv') }}">Daftar Member (CSV)</a>
+            </div>
+        </div>
     </div>
 
     <!-- Kartu ringkasan (2 kartu, lebar, tetap memenuhi baris) -->
