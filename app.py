@@ -1644,7 +1644,7 @@ def queue_analysis():
 
 
 @app.route('/admin/queue/export')
-@role_required('manager','admin')
+@role_required('manager')
 def export_queue_csv():
 
     import io, csv

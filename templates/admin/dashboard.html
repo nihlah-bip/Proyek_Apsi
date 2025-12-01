@@ -13,7 +13,6 @@
                 <i class="fas fa-download fa-sm text-white-50"></i> Generate Report
             </button>
             <div class="dropdown-menu dropdown-menu-right">
-                <a class="dropdown-item" href="{{ url_for('export_queue_csv') }}">Analisis Antrian (CSV)</a>
                 <a class="dropdown-item" href="{{ url_for('export_income_csv', period='month') }}">Pemasukan - Bulan Ini (CSV)</a>
                 <a class="dropdown-item" href="{{ url_for('export_income_csv', period='year') }}">Pemasukan - Tahun Ini (CSV)</a>
                 <div class="dropdown-divider"></div>
