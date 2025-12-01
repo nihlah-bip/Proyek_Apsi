@@ -1674,6 +1674,86 @@ def export_queue_csv():
     })
 
 
+@app.route('/admin/export/income')
+@role_required('manager')
+def export_income_csv():
+    """Export pembayaran (pemasukan) sebagai CSV.
+    Optional query param `period` can be 'month' or 'year'. Default is 'year'.
+    """
+    import io, csv
+    period = request.args.get('period', 'year')
+    today = datetime.utcnow().date()
+
+    query = Pembayaran.query.join(Member, Pembayaran.member_id == Member.id)
+
+    if period == 'month':
+        # filter to current month
+        start = today.replace(day=1)
+        # naive month end: next month first day minus one
+        if start.month == 12:
+            end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = start.replace(month=start.month + 1, day=1) - timedelta(days=1)
+        query = query.filter(Pembayaran.tanggal_bayar >= start, Pembayaran.tanggal_bayar <= end)
+        filename = f"pemasukan_{start.strftime('%Y_%m')}.csv"
+    else:
+        # default: current year
+        start = today.replace(month=1, day=1)
+        end = today.replace(month=12, day=31)
+        query = query.filter(Pembayaran.tanggal_bayar >= start, Pembayaran.tanggal_bayar <= end)
+        filename = f"pemasukan_{start.year}.csv"
+
+    rows = query.order_by(Pembayaran.tanggal_bayar.desc()).all()
+
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(['tanggal_bayar','member_id','member_nama','nominal','keterangan'])
+    for p in rows:
+        writer.writerow([
+            p.tanggal_bayar.strftime('%Y-%m-%d') if p.tanggal_bayar else '',
+            p.member_id,
+            (p.member.nama_lengkap if p.member else ''),
+            p.nominal,
+            p.keterangan or ''
+        ])
+
+    output = out.getvalue()
+    return (output, 200, {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
+
+@app.route('/admin/export/members')
+@role_required('manager')
+def export_members_csv():
+    """Export daftar member sebagai CSV."""
+    import io, csv
+    rows = Member.query.order_by(Member.tgl_daftar.desc()).all()
+
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(['member_id','nama_lengkap','program','no_wa','email','status','tgl_daftar','tgl_habis','trainer_username'])
+    for m in rows:
+        writer.writerow([
+            m.id,
+            m.nama_lengkap,
+            m.program,
+            m.no_wa or '',
+            (m.user_account.email if m.user_account else '') if hasattr(m, 'user_account') else '',
+            m.status or '',
+            m.tgl_daftar.strftime('%Y-%m-%d') if m.tgl_daftar else '',
+            m.tgl_habis.strftime('%Y-%m-%d') if m.tgl_habis else '',
+            (m.trainer.username if m.trainer else '')
+        ])
+
+    output = out.getvalue()
+    return (output, 200, {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="members_list.csv"'
+    })
+
+
 @app.route('/admin/queue/clear', methods=['POST'])
 @role_required('manager')
 def clear_queue_history():
